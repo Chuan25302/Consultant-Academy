@@ -70,5 +70,69 @@ Format:
 - **2024-06-24**: TECHNICAL | BESS & UPS: Backup Power สำหรับ Critical Load | Pharma | BESS,UPS,backup,battery | cluster=Backup-Power | level=2
 - **2024-06-25**: INDUSTRY | โรงงานยา: WFI System Energy | Pharma | WFI,purified water,distillation,pharma | cluster=Pharma | level=3
 - **2024-06-26**: FRAMEWORK | Fault Tree Analysis: วิเคราะห์ความเสี่ยงพลังงาน | General | FTA,fault tree,risk,reliability | cluster=Risk-Analysis | level=3
-- **2024-06-27**: SOFTSKILL | Objection: "เราเคยลองแล้วไม่ได้ผล" | General | objection,trust,past failure | cluster=Objection-Handling | level=2
+- **2024-06-27**: SOFTSKILL | Objection: "เราเคยลองแล้วไม่ได้ผล" — Sandler Pain Funnel | General | objection,trust,sandler | cluster=Objection-Handling | level=2
 - **2024-06-28**: RECAP | สรุปสัปดาห์ที่ 8 | General | recap
+
+## July 2024 — Week 9–10: อาหารแปรรูปและน้ำตาล (Food & Sugar)
+
+### Week 9
+- **2024-07-01**: TECHNICAL | Cooling Tower: Approach, Range และวิธีลด Fan Power | Food | cooling tower,approach,fan,VFD | cluster=Cooling-Tower | level=1
+- **2024-07-02**: INDUSTRY | โรงงานอาหารแปรรูป: Cold Chain + CIP Energy Profile | Food | food,cold chain,CIP,steam | cluster=Food-Processing | level=1
+- **2024-07-03**: FRAMEWORK | Pareto + ABC: เลือกจุดที่จะแก้ก่อน | General | pareto,80-20,prioritization | cluster=Diagnosis | level=1
+- **2024-07-04**: SOFTSKILL | BANT Qualification: ลูกค้าน่าทำหรือไม่ | General | BANT,qualification,sales | cluster=Discovery | level=1
+- **2024-07-05**: RECAP | สรุปสัปดาห์ที่ 9 | General | recap
+
+### Week 10
+- **2024-07-08**: TECHNICAL | Pump Efficiency: BEP, Cavitation และ VFD Control | Food | pump,BEP,cavitation,VFD | cluster=Pumps | level=1
+- **2024-07-09**: INDUSTRY | โรงงานน้ำตาล: Bagasse Boiler + Cogeneration | Sugar | sugar,bagasse,cogen,boiler | cluster=Sugar-Mill | level=2
+- **2024-07-10**: FRAMEWORK | SMART Goals สำหรับ Energy Project | General | SMART,goals,KPI | cluster=Project-Management | level=1
+- **2024-07-11**: SOFTSKILL | MEDDIC: Qualify Enterprise Deal | General | MEDDIC,enterprise,sales | cluster=Discovery | level=2
+- **2024-07-12**: RECAP | สรุปสัปดาห์ที่ 10 | General | recap
+
+## July–August 2024 — Week 11–12: ปิโตรเคมี & โรงกลั่น (Petrochem & Refinery)
+
+### Week 11
+- **2024-07-15**: TECHNICAL | Air Compressor: Leak, Pressure Drop และ Heat Recovery | Petrochem | compressor,leak,pressure,heat recovery | cluster=Compressed-Air | level=1
+- **2024-07-16**: INDUSTRY | โรงกลั่นน้ำมัน: Distillation + Heat Integration | Refinery | refinery,distillation,pinch,heat exchange | cluster=Refinery | level=2
+- **2024-07-17**: FRAMEWORK | Pinch Analysis: หาจุด Heat Recovery | General | pinch,heat integration,grand composite | cluster=Heat-Integration | level=3
+- **2024-07-18**: SOFTSKILL | SPIN Selling: Implication คำถามที่ทำให้ลูกค้ารู้สึกเร่งด่วน | General | SPIN,implication,sales | cluster=Discovery | level=2
+- **2024-07-19**: RECAP | สรุปสัปดาห์ที่ 11 | General | recap
+
+### Week 12
+- **2024-07-22**: TECHNICAL | Steam System: Trap Survey + Insulation ROI | Petrochem | steam,trap,insulation,survey | cluster=Steam | level=2
+- **2024-07-23**: INDUSTRY | โรงงานพลาสติก: Extrusion + Injection Mold Energy | Plastic | plastic,extrusion,injection mold,cooling | cluster=Plastic | level=1
+- **2024-07-24**: FRAMEWORK | ISO 50001: Energy Management System | General | ISO 50001,EnMS,management system | cluster=Management-System | level=2
+- **2024-07-25**: SOFTSKILL | Stakeholder Map: RACI สำหรับ Energy Project | General | stakeholder,RACI,influence | cluster=Account-Strategy | level=2
+- **2024-07-26**: RECAP | สรุปสัปดาห์ที่ 12 | General | recap
+
+## July–August 2024 — Week 13–14: อุตสาหกรรมหนัก (Heavy: Cement & Auto)
+
+### Week 13
+- **2024-07-29**: TECHNICAL | Kiln: Refractory Loss, Excess Air และ Heat Recovery | Cement | kiln,refractory,excess air,recovery | cluster=Kilns-Furnaces | level=2
+- **2024-07-30**: INDUSTRY | โรงงานปูน: Raw Mill + Finish Mill + Preheater | Cement | cement,kiln,raw mill,preheater | cluster=Cement | level=1
+- **2024-07-31**: FRAMEWORK | Decision Matrix: เลือก Solution ที่เหมาะสม | General | decision matrix,weighted scoring | cluster=Decision-Making | level=2
+- **2024-08-01**: SOFTSKILL | Challenger Sale: Teach > Tailor > Take Control | General | challenger,teach,sales | cluster=Sales-Frameworks | level=3
+- **2024-08-02**: RECAP | สรุปสัปดาห์ที่ 13 | General | recap
+
+### Week 14
+- **2024-08-05**: TECHNICAL | Furnace: Combustion Optimization + O2 Trim | Auto | furnace,combustion,O2 trim,burner | cluster=Kilns-Furnaces | level=2
+- **2024-08-06**: INDUSTRY | โรงงานชิ้นส่วนยานยนต์: Stamping + Paint Shop Energy | Auto | auto parts,stamping,paint,assembly | cluster=Auto-Manufacturing | level=1
+- **2024-08-07**: FRAMEWORK | NPV vs Payback: ภาษาการเงินที่ CFO เข้าใจ | General | NPV,IRR,payback,finance | cluster=Financial-Analysis | level=2
+- **2024-08-08**: SOFTSKILL | Executive Briefing: 1 Slide, 3 Numbers, 1 Ask | General | executive,briefing,one-pager | cluster=Executive-Communication | level=3
+- **2024-08-09**: RECAP | สรุปสัปดาห์ที่ 14 | General | recap
+
+## August 2024 — Week 15–16: เหมืองแร่ & จัดการของเสีย (Mining & Waste)
+
+### Week 15
+- **2024-08-12**: TECHNICAL | Crusher + Ball Mill: Specific Energy Consumption | Mining | crusher,ball mill,SEC,grinding | cluster=Crushing-Grinding | level=1
+- **2024-08-13**: INDUSTRY | เหมืองแร่: โม่ บด ย่อย + คัดแยก Energy Profile | Mining | mining,crushing,flotation,separation | cluster=Mining | level=1
+- **2024-08-14**: FRAMEWORK | Energy Audit Type II: DEDE Standard | General | DEDE,energy audit,type II | cluster=Energy-Audit | level=2
+- **2024-08-15**: SOFTSKILL | Negotiation: Anchor + ZOPA + BATNA | General | negotiation,BATNA,ZOPA,anchor | cluster=Negotiation | level=2
+- **2024-08-16**: RECAP | สรุปสัปดาห์ที่ 15 | General | recap
+
+### Week 16
+- **2024-08-19**: TECHNICAL | Aerator + Blower: Wastewater Treatment Energy | Waste | aerator,blower,DO,wastewater | cluster=Wastewater | level=1
+- **2024-08-20**: INDUSTRY | โรงงานจัดการสิ่งปฏิกูล (ประเภท 105): Sorting + Landfill + Biogas | Waste | waste,landfill,biogas,sorting | cluster=Waste-Management | level=1
+- **2024-08-21**: FRAMEWORK | Lifecycle Assessment (LCA) เบื้องต้น | General | LCA,lifecycle,carbon | cluster=Sustainability | level=2
+- **2024-08-22**: SOFTSKILL | Storytelling for Consultants: STAR + ROI | General | storytelling,STAR,case | cluster=Communication | level=2
+- **2024-08-23**: RECAP | สรุปสัปดาห์ที่ 16 | General | recap

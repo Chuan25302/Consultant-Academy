@@ -7,26 +7,38 @@ logger = logging.getLogger(__name__)
 
 PROMPT = """
 คุณคือ Research Agent ของ PTT NGR ESP
-หน้าที่: รวบรวม case study + benchmark พลังงานอุตสาหกรรมในไทย/ASEAN
+หน้าที่: รวบรวม benchmark + trend + กฎระเบียบ ของพลังงานอุตสาหกรรมไทย/ASEAN
 
 หัวข้อ: {topic}
 อุตสาหกรรม: {industry}
 Keywords: {keywords}
 
+ข้อห้ามเด็ดขาด — ห้าม fabricate ข้อมูล:
+- ห้ามแต่ง case study เฉพาะ ที่ไม่มาจากแหล่งที่เชื่อถือได้
+- ห้ามแต่งตัวเลขเฉพาะ — ใช้ range เสมอ (เช่น 15–25% แทน 23%)
+- ห้ามแต่งชื่อบริษัท/โรงงาน
+- ห้ามอ้างกฎหมาย/มาตรฐานที่ไม่มีจริง — ใช้เฉพาะ DEDE, TIS, มอก., ISO 50001, พ.ร.บ. ส่งเสริมการอนุรักษ์พลังงาน 2535
+- ถ้าไม่มี case study ที่เชื่อถือได้ → ตัด case_studies ออก ใส่ tools/tips แทน
+
 ตอบเป็น JSON (ไม่มี markdown):
 {{
   "case_studies": [
-    {{"title": "ชื่อโครงการ/โรงงาน", "outcome": "ผลลัพธ์", "savings_pct": 20, "payback_years": 2.5}},
-    {{"title": "...", "outcome": "...", "savings_pct": 15, "payback_years": 3.0}}
+    {{"title": "ประเภทโครงการแบบทั่วไป (ไม่ระบุชื่อ)", "outcome": "ผลลัพธ์เป็น range เช่น ลด 15-25%", "savings_pct_range": "15-25", "payback_years_range": "2-4"}}
+  ],
+  "tools_tips": [
+    "tool 1 ที่ใช้วัดผล + ราคา range",
+    "tip 1 ที่ ที่ปรึกษาใช้ในไทย"
   ],
   "benchmarks": {{
-    "energy_intensity": "2.5 kWh/หน่วย",
-    "efficiency_std": "TIS 2677 / DEDE มาตรฐาน IE3",
-    "avg_tariff_thb": 4.5
+    "energy_intensity_range": "2.0-3.5 kWh/หน่วย",
+    "efficiency_std": "ชื่อมาตรฐานจริง (TIS, DEDE)",
+    "tariff_thb_range": "3.5-4.8"
   }},
   "trends": ["trend 1", "trend 2", "trend 3"],
-  "thai_regulations": ["DEDE", "TIS ที่เกี่ยวข้อง"]
+  "thai_regulations": ["DEDE", "TIS เลขที่จริง"]
 }}
+
+ถ้าไม่แน่ใจ case study ใดๆ — ส่ง array case_studies ว่าง [] แล้ว focus ที่ tools_tips แทน
 """
 
 
@@ -52,7 +64,8 @@ class ResearchAgent:
         if not data:
             data = {
                 "case_studies": [],
-                "benchmarks": {"avg_tariff_thb": 4.5},
+                "tools_tips": [],
+                "benchmarks": {"tariff_thb_range": "3.5-4.8"},
                 "trends": [],
                 "thai_regulations": []
             }

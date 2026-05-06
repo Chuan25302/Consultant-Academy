@@ -20,6 +20,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from src.agents.designer_agent import DesignerAgent
 from src.agents.editor_agent import EditorAgent
 from src.agents.expert_agent import ExpertAgent
+from src.agents.factchecker_agent import FactCheckerAgent
 from src.agents.industry_agent import IndustryAgent
 from src.agents.recap_agent import RecapAgent
 from src.agents.research_agent import ResearchAgent
@@ -97,15 +98,23 @@ def main(date: str = None, dry_run: bool = False,
     research = ResearchAgent(gemini, cache).gather(
         topic["topic"], topic.get("industry"), topic.get("keywords"))
     expert = ExpertAgent(gemini).draft(
-        topic["topic"], topic["pillar"], research)
+        topic["topic"], topic["pillar"], research,
+        industry=topic.get("industry", "ทั่วไป"))
 
     industry_ctx = None
     if topic.get("industry") and topic["industry"] not in ["General", "ทั่วไป"]:
         industry_ctx = IndustryAgent(gemini).contextualize(
             topic["topic"], topic["industry"], expert)
 
+    # FactChecker: anti-hallucination gate. Reviews technical+industry content
+    # against the original research data; softens unverifiable claims.
+    combined_technical = expert
+    if industry_ctx:
+        combined_technical = f"{expert}\n\n## บริบทอุตสาหกรรม\n{industry_ctx}"
+    verified = FactCheckerAgent(gemini).review(combined_technical, research)
+
     translated = TranslatorAgent(gemini).simplify(
-        expert, industry_ctx, topic["topic"], topic["pillar"])
+        verified, None, topic["topic"], topic["pillar"])
 
     edited = EditorAgent(gemini).review(translated)
 

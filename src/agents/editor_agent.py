@@ -24,6 +24,14 @@ NUMBER_WITH_UNIT_RE = re.compile(
 GLOSSARY_RE = re.compile(r"📖|ศัพท์น่ารู้")
 CMOVE_RE = re.compile(r"Consultant\s*Move", re.IGNORECASE)
 
+# Anti-hallucination spot check — catches leftover specifics the FactChecker
+# might have missed. Person-name detection in Thai is unreliable (no spaces
+# between title and name; "คุณ" is also a regular word) so we leave that to
+# the LLM-powered FactChecker upstream and only check company patterns here.
+SPECIFIC_COMPANY_RE = re.compile(
+    r"(?:บริษัท|บมจ\.?|จก\.?|จำกัด|Co\.?,?\s*Ltd\.?|Inc\.?|Corp\.?)\s+[A-Za-zก-๙][A-Za-zก-๙\s]{1,20}"
+)
+
 PROMPT = """
 คุณคือ Editor ของ PTT NGR ESP Consultant Academy
 แก้เนื้อหาต่อไปนี้ให้ผ่านเกณฑ์ที่กำหนด — ไม่ต้องอธิบาย ไม่ใส่ comment
@@ -81,4 +89,8 @@ class EditorAgent:
         word_count = len(md.split())
         if word_count > 700:
             issues.append(f"เนื้อหายาว {word_count} คำ ต้องการไม่เกิน 600")
+        # Anti-hallucination spot check (FactChecker should have cleaned this,
+        # but Editor catches anything that slipped through).
+        if SPECIFIC_COMPANY_RE.search(md):
+            issues.append("พบชื่อบริษัทเฉพาะ — เปลี่ยนเป็น 'โรงงานขนาด X แห่งหนึ่ง'")
         return issues

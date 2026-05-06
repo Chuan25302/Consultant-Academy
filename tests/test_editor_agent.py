@@ -85,3 +85,16 @@ def test_review_falls_back_to_original_on_llm_error():
     bad_md = "ไม่มีอะไรเลย"
     out = editor.review(bad_md)
     assert out == bad_md
+
+
+def test_check_flags_specific_company_name():
+    md = GOOD + "\nบริษัท ABC จำกัด ลด 25%"
+    issues = EditorAgent.check(md)
+    assert any("ชื่อบริษัท" in i for i in issues)
+
+
+def test_check_passes_generic_company_phrasing():
+    """Good content uses 'โรงงานขนาดX แห่งหนึ่ง' which should NOT flag."""
+    md = GOOD.replace("โรงแรม 200 ห้องในกรุงเทพ", "โรงงานขนาดกลางแห่งหนึ่งในไทย")
+    issues = EditorAgent.check(md)
+    assert not any("ชื่อบริษัท" in i for i in issues)

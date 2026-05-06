@@ -123,10 +123,12 @@ to `data/cost_log.jsonl` — uploaded as a workflow artifact every run.
 
 | Configuration | Per day | Per month (~22 days) |
 |---|---|---|
-| All Flash 2.0 | ~$0.001 | ~$0.02 |
-| Expert=Pro 2.5, rest Flash 2.0 | ~$0.02 | ~$0.40 |
-| All Pro 2.5 | ~$0.10 | ~$2.20 |
+| All Flash 2.0 | ~$0.002 | ~$0.04 |
+| **Recommended**: Pro on Expert + FactChecker, Flash 2.5 on Industry + Editor, Flash 2.0 elsewhere | ~$0.05 (≈1.5 บาท) | ~$1.10 (≈30–40 บาท) |
+| All Pro 2.5 | ~$0.15 | ~$3.30 |
 | GitHub Actions | free (public) / 2000 min free (private) | — |
+
+The recommended config keeps spend under 2 บาท/day while running Pro 2.5 on the two agents that most need accuracy: the Expert (core technical content) and the FactChecker (anti-hallucination gate).
 
 ---
 
