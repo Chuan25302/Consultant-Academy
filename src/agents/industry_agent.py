@@ -46,5 +46,6 @@ class IndustryAgent:
                 topic=topic, industry=industry,
                 expert_content=expert_content[:1200]
             ),
-            max_tokens=1500
+            max_tokens=1500,
+            agent_tag="industry",
         )

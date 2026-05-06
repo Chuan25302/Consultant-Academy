@@ -21,74 +21,90 @@ Fill in `.env` with your keys and IDs.
 
 ---
 
-## 2. Google Cloud / Drive API
+## 2. Google Cloud — Service Account
 
-1. Visit https://console.cloud.google.com → Create project
+We use a **service account** (not OAuth Desktop) so the workflow runs headless on GitHub Actions without expiring tokens.
+
+1. Visit https://console.cloud.google.com → Create or pick a project
 2. Enable **Google Drive API**
-3. Create OAuth 2.0 Client ID (type: Desktop)
-4. Download `credentials.json` to project root
-5. Run `python src/main.py` once locally — browser opens for OAuth → creates `token.json`
+3. **IAM & Admin → Service Accounts → Create Service Account**
+   - Name: `consultant-academy-bot`
+   - Skip role grants (Drive permission is per-folder, see step 4)
+4. Open the new service account → **Keys → Add Key → Create new key → JSON**
+   - Download the JSON, save as `service-account.json` in repo root
+5. Note the service account email — looks like `consultant-academy-bot@<project>.iam.gserviceaccount.com`
+
+> **Service accounts have NO Drive of their own.** They can only access folders/files that have been explicitly **shared** with their email.
 
 ---
 
-## 3. Gemini API
+## 3. Share Drive folders with the service account
+
+In Google Drive, for each of the 3 root folders **and** the calendar file:
+
+```
+Email Archives/         → share with SA email, role: Editor
+Knowledge Base/         → share with SA email, role: Editor
+Program Management/     → share with SA email, role: Editor
+Content-Calendar-2024.md → share with SA email, role: Viewer (or Editor)
+```
+
+Then copy each folder's ID from URL `drive.google.com/drive/folders/<ID>` into `.env`.
+
+---
+
+## 4. Gemini API
 
 1. Visit https://aistudio.google.com/apikey
 2. Create API key → save as `GOOGLE_API_KEY` in `.env`
-3. Default model: `gemini-2.0-flash` ($0.075/1M tokens)
+3. Default model: `gemini-2.0-flash` (~$0.075/1M tokens)
 
 ---
 
-## 4. Google Drive Folder Structure
+## 5. Local smoke test
 
-Create three top-level folders in Drive and copy their IDs:
-
-```
-Email Archives/         → FOLDER_EMAIL_ARCHIVES
-Knowledge Base/         → FOLDER_KNOWLEDGE_BASE
-Program Management/     → FOLDER_PROGRAM_MGMT
+```bash
+python src/main.py --dry-run
 ```
 
-Upload `docs/Content-Calendar-2024.md` to Drive — copy its file ID → `CALENDAR_FILE_ID`.
-
-To find a folder ID: open folder in Drive, copy from URL `drive.google.com/drive/folders/<ID>`.
+`--dry-run` runs the full Gemini pipeline but skips Drive uploads — good for verifying agents + calendar parsing without polluting Drive.
 
 ---
 
-## 5. GitHub Actions Setup
+## 6. GitHub Actions Setup
 
 Add these secrets at **Settings → Secrets and variables → Actions**:
 
 | Secret | Value |
 |---|---|
 | `GOOGLE_API_KEY` | Gemini API key |
-| `ANTHROPIC_API_KEY` | (optional) Claude API key |
-| `GOOGLE_CREDENTIALS_JSON` | full JSON content of `credentials.json` |
-| `GOOGLE_TOKEN_JSON` | full JSON content of `token.json` (after local OAuth) |
-| `CALENDAR_FILE_ID` | Drive file ID |
+| `GOOGLE_SERVICE_ACCOUNT_JSON` | Full JSON content of `service-account.json` |
+| `CALENDAR_FILE_ID` | Drive file ID of content calendar |
 | `FOLDER_EMAIL_ARCHIVES` | Drive folder ID |
 | `FOLDER_KNOWLEDGE_BASE` | Drive folder ID |
 | `FOLDER_PROGRAM_MGMT` | Drive folder ID |
+| `SLACK_WEBHOOK_URL` | *(optional)* Slack incoming webhook for failure alerts |
 
-Schedule: Mon–Fri at 00:00 UTC (07:00 Bangkok). Can be triggered manually via **Actions → Daily Routine → Run workflow**.
+Schedule: Mon–Fri at 00:00 UTC (07:00 Bangkok). Manual trigger via **Actions → Daily Routine → Run workflow** (with optional `dry_run`).
 
 ---
 
-## 6. Cost Expectations
+## 7. Cost Expectations
 
-| Item | Per day | Per month |
+| Item | Per day | Per month (~22 working days) |
 |---|---|---|
-| Gemini Flash (4 agents × ~1.5k tokens) | ~$0.0005 | ~$0.01 |
-| Cache hits (after week 1) | ~$0.00 | ~$0.00 |
+| Gemini Flash (4 agents × ~1.5k tokens, real usage logged) | ~$0.0005 | ~$0.011 |
+| Cache hits (after first occurrence within 7 days) | $0.00 | ~$0.00 |
+| GitHub Actions | free (public) / 2000 min free (private) | — |
 | **Total** | **<$0.001** | **<$1** |
 
-GitHub Actions: free for public repos, 2000 min/month free for private.
+Real token counts come from `response.usage_metadata.total_token_count` and are written to `data/cost_log.jsonl` (uploaded as a workflow artifact every run).
 
 ---
 
-## 7. Adding New Topics
+## 8. Adding New Topics
 
-Edit `docs/Content-Calendar-2024.md` (locally **and** in Drive). Format:
+Edit the calendar file in Drive (and optionally `docs/Content-Calendar-2024.md` to keep them in sync). Format:
 
 ```
 - **YYYY-MM-DD**: PILLAR | หัวข้อ | Industry | keyword1,keyword2
@@ -96,11 +112,17 @@ Edit `docs/Content-Calendar-2024.md` (locally **and** in Drive). Format:
 
 Pillars: `TECHNICAL` | `INDUSTRY` | `FRAMEWORK` | `SOFTSKILL` | `RECAP`
 
+`RECAP` rows skip the full pipeline and run the weekly recap agent instead (which summarizes the week's `[Email] ...` files).
+
 ---
 
-## 8. Troubleshooting
+## 9. Troubleshooting
 
-- **`No topic found for YYYY-MM-DD`** — Calendar file in Drive doesn't have that date, or format is malformed
-- **OAuth fails on GitHub Actions** — `token.json` expired; re-run `python src/main.py` locally to refresh, then update `GOOGLE_TOKEN_JSON` secret
-- **Empty research output** — Gemini returned non-JSON; check API quota
-- **Friday recap empty** — No `[Email] YYYY-MM-DD ...` files found in current week's folder
+| Symptom | Likely cause | Fix |
+|---|---|---|
+| `No topic found for YYYY-MM-DD` | Calendar in Drive doesn't contain that date | Add row in calendar (Bangkok timezone) |
+| `Calendar file empty or unreadable` | SA doesn't have access to the calendar file | Share file with SA email |
+| `Upload failed: 403 insufficient permissions` | SA doesn't have Editor on the target folder | Share folder with SA email as **Editor** |
+| Friday recap empty | No `[Email] YYYY-MM-DD ...` files for Mon–Thu of current week | Re-run earlier days, or check folder structure |
+| Workflow fails silently | No Slack secret configured | Add `SLACK_WEBHOOK_URL` and check workflow run page directly |
+| Same file uploaded twice | Re-running workflow same day | `upload()` defaults to `skip_if_exists=True` so this should be a no-op now |

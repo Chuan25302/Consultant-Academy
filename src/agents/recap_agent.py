@@ -1,11 +1,12 @@
 """
-Recap Agent — runs every Friday.
+Recap Agent — runs every Friday (or whenever pillar=RECAP).
 Finds [Email] files from Mon–Thu in Drive, summarizes, uploads [Recap].
 """
 import re
 import logging
 from datetime import datetime, timedelta
 
+from src.config.settings import now_bangkok
 from src.integrations.gemini_client import GeminiClient
 from src.integrations.drive_api import DriveAPI
 from src.agents.designer_agent import DesignerAgent
@@ -46,16 +47,18 @@ class RecapAgent:
         self.drive = drive
         self.settings = settings
 
-    def generate_and_upload(self):
-        today = datetime.now()
+    def generate_and_upload(self, dry_run: bool = False):
+        today = now_bangkok()
         week_start = today - timedelta(days=today.weekday())
         summaries = []
 
         for offset in range(4):  # Mon–Thu
-            prefix = f"[Email] {(week_start + timedelta(days=offset)).strftime('%Y-%m-%d')}"
+            day = (week_start + timedelta(days=offset)).strftime("%Y-%m-%d")
+            prefix = f"[Email] {day}"
             files = self.drive.list_files_by_prefix(prefix)
             for f in files:
-                title = re.sub(r"\[Email\] \d{4}-\d{2}-\d{2} (.+)\.html", r"\1", f["name"])
+                title = re.sub(r"\[Email\] \d{4}-\d{2}-\d{2} (.+)\.html",
+                               r"\1", f["name"])
                 summaries.append(f"- {title}")
 
         if not summaries:
@@ -65,9 +68,10 @@ class RecapAgent:
         recap_md = self.gemini.generate(
             PROMPT.format(
                 week=today.isocalendar()[1],
-                summaries="\n".join(summaries)
+                summaries="\n".join(summaries),
             ),
-            max_tokens=1500
+            max_tokens=1500,
+            agent_tag="recap",
         )
 
         recap_html = DesignerAgent.create_email(
@@ -75,20 +79,26 @@ class RecapAgent:
             metadata={
                 "pillar": "RECAP",
                 "topic": f"สรุป สัปดาห์ที่ {today.isocalendar()[1]} — Consultant Toolkit",
-                "date": today, "industry": None
-            }
+                "date": today, "industry": None,
+            },
         )
 
         date_str = today.strftime("%Y-%m-%d")
         month_path = today.strftime("%Y/%B").lower()
+        filename = f"[Recap] {date_str} สัปดาห์ที่ {today.isocalendar()[1]}.html"
+
+        if dry_run:
+            logger.info(f"🧪 [dry-run] would upload: {filename}")
+            return
+
         folder_id = self.drive.get_or_create_folder(
             path=f"Email Archives/{month_path}",
-            root_id=self.settings.FOLDER_EMAIL_ARCHIVES
+            root_id=self.settings.FOLDER_EMAIL_ARCHIVES,
         )
         self.drive.upload(
-            filename=f"[Recap] {date_str} สัปดาห์ที่ {today.isocalendar()[1]}.html",
+            filename=filename,
             content=recap_html,
             folder_id=folder_id,
-            mime_type="text/html"
+            mime_type="text/html",
         )
         logger.info("✅ Weekly recap uploaded")

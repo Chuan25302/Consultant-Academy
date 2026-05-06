@@ -41,5 +41,6 @@ class TranslatorAgent:
                 expert_content=expert_content[:1500],
                 industry_context=industry_context[:400] if industry_context else "ไม่มี"
             ),
-            max_tokens=2000
+            max_tokens=2000,
+            agent_tag="translator",
         )

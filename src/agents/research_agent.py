@@ -45,7 +45,8 @@ class ResearchAgent:
                 topic=topic,
                 industry=industry or "ทั่วไป",
                 keywords=", ".join(keywords or [topic])
-            )
+            ),
+            agent_tag="research",
         )
         if not data:
             data = {

@@ -1,15 +1,16 @@
 """
 Main orchestrator — runs daily via GitHub Actions.
 Flow: Calendar → Research → Expert → Industry → Translator → Designer → Drive
+RECAP days short-circuit straight to RecapAgent (skipping the full pipeline).
 """
+import argparse
 import json
 import sys
-from datetime import datetime
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from src.config.settings import Settings
+from src.config.settings import Settings, now_bangkok
 from src.agents.research_agent import ResearchAgent
 from src.agents.expert_agent import ExpertAgent
 from src.agents.industry_agent import IndustryAgent
@@ -21,6 +22,7 @@ from src.integrations.gemini_client import GeminiClient
 from src.integrations.research_cache import ResearchCache
 from src.utils.calendar_parser import CalendarParser
 from src.utils.cost_tracker import CostTracker
+from src.utils.docx_writer import markdown_to_docx_bytes
 from src.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
@@ -29,74 +31,82 @@ PILLAR_FOLDER = {
     "TECHNICAL": "01-Technical-Depth",
     "INDUSTRY":  "02-Industry-Business-Logic",
     "FRAMEWORK": "03-Diagnostic-Frameworks",
-    "SOFTSKILL": "04-Soft-Skills-Positioning"
+    "SOFTSKILL": "04-Soft-Skills-Positioning",
 }
 
+DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 
-def main():
+
+def main(dry_run: bool = False):
+    today = now_bangkok()
     logger.info("=" * 60)
     logger.info("🚀 PTT NGR ESP — Consultant Academy")
-    logger.info(f"📅 {datetime.now().strftime('%A %d %B %Y %H:%M')}")
+    logger.info(f"📅 {today.strftime('%A %d %B %Y %H:%M')} (Asia/Bangkok)")
+    if dry_run:
+        logger.info("🧪 DRY RUN — no Drive uploads will occur")
     logger.info("=" * 60)
 
-    s       = Settings()
-    drive   = DriveAPI(s)
-    gemini  = GeminiClient(s)
-    cache   = ResearchCache(s.RESEARCH_CACHE_TTL_DAYS)
-    cost    = CostTracker()
+    s      = Settings()
+    cost   = CostTracker()
+    drive  = DriveAPI(s)
+    gemini = GeminiClient(s, cost_tracker=cost)
+    cache  = ResearchCache(s.RESEARCH_CACHE_TTL_DAYS)
 
-    # 1. Get today's topic from Drive calendar
     raw = drive.download_file(s.CALENDAR_FILE_ID)
-    topic = CalendarParser(raw).get_topic(datetime.now())
+    if not raw:
+        logger.error("❌ Calendar file empty or unreadable")
+        return {"status": "error", "reason": "calendar_unreadable"}
+
+    topic = CalendarParser(raw).get_topic(today)
     if not topic:
-        logger.error("❌ No topic for today — check Content-Calendar file in Drive")
+        logger.error("❌ No topic for today — check Content-Calendar in Drive")
         return {"status": "error", "reason": "no_topic"}
     logger.info(f"📌 [{topic['pillar']}] {topic['topic']} | {topic.get('industry')}")
 
-    # 2. Multi-agent pipeline
+    # RECAP day → run recap directly, skip the full pipeline
+    if topic["pillar"] == "RECAP":
+        logger.info("📋 RECAP day — generating weekly recap...")
+        RecapAgent(gemini, drive, s).generate_and_upload(dry_run=dry_run)
+        daily_cost = cost.daily_total()
+        logger.info(f"💰 Daily cost: ${daily_cost:.4f}")
+        return {"status": "success", "topic": topic["topic"],
+                "pillar": "RECAP", "cost_usd": daily_cost}
+
+    # Normal multi-agent pipeline
     research = ResearchAgent(gemini, cache).gather(
         topic["topic"], topic.get("industry"), topic.get("keywords"))
-    cost.log("gemini-flash", "research", 1200)
 
     expert = ExpertAgent(gemini).draft(
         topic["topic"], topic["pillar"], research)
-    cost.log("gemini-flash", "expert", 1500)
 
     industry_ctx = None
     if topic.get("industry") and topic["industry"] not in ["General", "ทั่วไป"]:
         industry_ctx = IndustryAgent(gemini).contextualize(
             topic["topic"], topic["industry"], expert)
-        cost.log("gemini-flash", "industry", 1000)
 
     translated = TranslatorAgent(gemini).simplify(
         expert, industry_ctx, topic["topic"], topic["pillar"])
-    cost.log("gemini-flash", "translator", 1500)
 
     email_html = DesignerAgent.create_email(translated, topic)
 
-    # 3. Upload to Drive
     date_str   = topic["date"].strftime("%Y-%m-%d")
     month_path = topic["date"].strftime("%Y/%B").lower()
+    email_filename = f"[Email] {date_str} {topic['topic']}.html"
+    docx_filename  = f"{date_str} — {topic['pillar']} — {topic['topic'][:50]}.docx"
 
-    email_folder = drive.get_or_create_folder(
-        f"Email Archives/{month_path}", s.FOLDER_EMAIL_ARCHIVES)
-    drive.upload(
-        f"[Email] {date_str} {topic['topic']}.html",
-        email_html, email_folder, "text/html")
+    if dry_run:
+        logger.info(f"🧪 [dry-run] would upload: {email_filename}")
+        logger.info(f"🧪 [dry-run] would upload: {docx_filename}")
+    else:
+        email_folder = drive.get_or_create_folder(
+            f"Email Archives/{month_path}", s.FOLDER_EMAIL_ARCHIVES)
+        drive.upload(email_filename, email_html, email_folder, "text/html")
 
-    if topic["pillar"] != "RECAP":
-        pillar_folder = drive.get_or_create_folder(
-            f"{PILLAR_FOLDER.get(topic['pillar'], 'General')}/{topic['topic'][:40]}",
-            s.FOLDER_KNOWLEDGE_BASE)
-        drive.upload(
-            f"{date_str} — {topic['pillar']} — {topic['topic'][:50]}.docx",
-            translated, pillar_folder,
-            "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
-
-    # 4. Friday recap
-    if datetime.now().weekday() == 4:
-        logger.info("📋 Friday — generating weekly recap...")
-        RecapAgent(gemini, drive, s).generate_and_upload()
+        pillar_folder_name = PILLAR_FOLDER.get(topic["pillar"], "General")
+        kb_folder = drive.get_or_create_folder(
+            pillar_folder_name, s.FOLDER_KNOWLEDGE_BASE)
+        docx_bytes = markdown_to_docx_bytes(translated, title=topic["topic"])
+        drive.upload(docx_filename, docx_bytes, kb_folder, DOCX_MIME)
 
     daily_cost = cost.daily_total()
     logger.info(f"💰 Daily cost: ${daily_cost:.4f}")
@@ -107,5 +117,10 @@ def main():
 
 
 if __name__ == "__main__":
-    result = main()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--dry-run", action="store_true",
+                        help="Run pipeline but skip Drive uploads")
+    args = parser.parse_args()
+    result = main(dry_run=args.dry_run)
     print(json.dumps(result, indent=2, default=str, ensure_ascii=False))
+    sys.exit(0 if result.get("status") == "success" else 1)

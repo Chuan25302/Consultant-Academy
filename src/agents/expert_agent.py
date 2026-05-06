@@ -44,5 +44,6 @@ class ExpertAgent:
                 topic=topic, pillar=pillar,
                 research=json.dumps(research, ensure_ascii=False)[:1500]
             ),
-            max_tokens=2000
+            max_tokens=2000,
+            agent_tag="expert",
         )
