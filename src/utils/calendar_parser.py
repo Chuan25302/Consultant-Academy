@@ -3,10 +3,9 @@ Parses Content-Calendar-YYYY.md from Google Drive.
 Line format:
 - **2024-05-06**: TECHNICAL | Chiller Efficiency 101 | Hospitality | chiller,COP,fouling
 """
-import re
 import logging
+import re
 from datetime import datetime
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -15,7 +14,7 @@ class CalendarParser:
     def __init__(self, content: str):
         self.content = content
 
-    def get_topic(self, date: datetime) -> Optional[dict]:
+    def get_topic(self, date: datetime) -> dict | None:
         date_key = date.strftime("%Y-%m-%d")
         for line in self.content.splitlines():
             if date_key not in line:

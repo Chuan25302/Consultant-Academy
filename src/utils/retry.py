@@ -7,11 +7,11 @@ import logging
 
 from googleapiclient.errors import HttpError
 from tenacity import (
+    before_sleep_log,
     retry,
     retry_if_exception,
     stop_after_attempt,
     wait_exponential,
-    before_sleep_log,
 )
 
 logger = logging.getLogger(__name__)

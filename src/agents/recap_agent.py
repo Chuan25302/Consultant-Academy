@@ -2,14 +2,14 @@
 Recap Agent — runs every Friday (or whenever pillar=RECAP).
 Finds [Email] files from Mon–Thu in Drive, summarizes, uploads [Recap].
 """
-import re
 import logging
+import re
 from datetime import datetime, timedelta
 
-from src.config.settings import now_bangkok
-from src.integrations.gemini_client import GeminiClient
-from src.integrations.drive_api import DriveAPI
 from src.agents.designer_agent import DesignerAgent
+from src.config.settings import now_bangkok
+from src.integrations.drive_api import DriveAPI
+from src.integrations.gemini_client import GeminiClient
 
 logger = logging.getLogger(__name__)
 
@@ -47,8 +47,8 @@ class RecapAgent:
         self.drive = drive
         self.settings = settings
 
-    def generate_and_upload(self, dry_run: bool = False):
-        today = now_bangkok()
+    def generate_and_upload(self, today: datetime = None, dry_run: bool = False):
+        today = today or now_bangkok()
         week_start = today - timedelta(days=today.weekday())
         summaries = []
 

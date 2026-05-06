@@ -7,7 +7,7 @@ from unittest.mock import Mock
 import pytest
 from googleapiclient.errors import HttpError
 
-from src.utils.retry import with_retries, _is_transient
+from src.utils.retry import _is_transient, with_retries
 
 
 def _fake_http_error(status: int) -> HttpError:

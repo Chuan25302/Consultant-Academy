@@ -1,5 +1,6 @@
 import json
 import logging
+
 from src.integrations.gemini_client import GeminiClient
 
 logger = logging.getLogger(__name__)

@@ -4,8 +4,7 @@ from zoneinfo import ZoneInfo
 
 import pytest
 
-from src.agents.designer_agent import DesignerAgent, PILLAR_CONFIG
-
+from src.agents.designer_agent import PILLAR_CONFIG, DesignerAgent
 
 TZ = ZoneInfo("Asia/Bangkok")
 

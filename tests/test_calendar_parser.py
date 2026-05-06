@@ -2,7 +2,6 @@ from datetime import datetime
 
 from src.utils.calendar_parser import CalendarParser
 
-
 SAMPLE = """
 # Calendar
 - **2024-05-06**: TECHNICAL | Chiller 101 | Hospitality | chiller,COP

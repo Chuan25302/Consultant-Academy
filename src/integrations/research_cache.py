@@ -1,10 +1,12 @@
 """
 Local 7-day cache for research data.
 Cache hit = zero API cost for same topic within 7 days.
+Expired entries are auto-pruned on init.
 """
-import json
 import hashlib
+import json
 import logging
+import time
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -16,6 +18,7 @@ class ResearchCache:
     def __init__(self, ttl_days: int = 7):
         self.ttl = timedelta(days=ttl_days)
         CACHE_DIR.mkdir(parents=True, exist_ok=True)
+        self._prune()
 
     def _key(self, topic: str, industry: str = None) -> str:
         raw = f"{topic.lower()}:{(industry or 'general').lower()}"
@@ -39,3 +42,14 @@ class ResearchCache:
             "cached_at": datetime.now().isoformat(),
             "research": research
         }, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    def _prune(self) -> int:
+        cutoff = time.time() - self.ttl.total_seconds()
+        pruned = 0
+        for f in CACHE_DIR.glob("*.json"):
+            if f.stat().st_mtime < cutoff:
+                f.unlink(missing_ok=True)
+                pruned += 1
+        if pruned:
+            logger.info(f"🧹 Pruned {pruned} expired cache entries")
+        return pruned

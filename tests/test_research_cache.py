@@ -54,3 +54,35 @@ def test_ttl_expiry(tmp_path, monkeypatch):
     os.utime(f, (old_time, old_time))
 
     assert cache.get("topic", "Steel") is None
+
+
+def test_prune_removes_expired(tmp_path, monkeypatch):
+    monkeypatch.setattr(rc_mod, "CACHE_DIR", tmp_path)
+    cache = ResearchCache(ttl_days=7)
+    cache.set("fresh", {"v": 1}, "Steel")
+    cache.set("stale", {"v": 2}, "Pharma")
+
+    # Backdate one entry
+    stale_file = tmp_path / f"{cache._key('stale', 'Pharma')}.json"
+    old_time = time.time() - (10 * 86400)
+    os.utime(stale_file, (old_time, old_time))
+
+    # New cache instance triggers prune in __init__
+    ResearchCache(ttl_days=7)
+
+    remaining = list(tmp_path.glob("*.json"))
+    assert len(remaining) == 1
+    assert remaining[0].name == f"{cache._key('fresh', 'Steel')}.json"
+
+
+def test_prune_returns_count(tmp_path, monkeypatch):
+    monkeypatch.setattr(rc_mod, "CACHE_DIR", tmp_path)
+    cache = ResearchCache(ttl_days=7)
+    for i in range(3):
+        cache.set(f"old-{i}", {"v": i}, "X")
+    # Age them all
+    old_time = time.time() - (10 * 86400)
+    for f in tmp_path.glob("*.json"):
+        os.utime(f, (old_time, old_time))
+
+    assert cache._prune() == 3

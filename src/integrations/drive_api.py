@@ -5,7 +5,6 @@ All API calls auto-retry on transient errors (HTTP 429/5xx, network blips).
 """
 import io
 import logging
-from typing import Optional, Union
 
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
@@ -85,9 +84,9 @@ class DriveAPI:
             logger.error(f"file_exists check failed: {e}")
             return False
 
-    def upload(self, filename: str, content: Union[str, bytes],
+    def upload(self, filename: str, content: str | bytes,
                folder_id: str, mime_type: str = "text/html",
-               skip_if_exists: bool = True) -> Optional[str]:
+               skip_if_exists: bool = True) -> str | None:
         if skip_if_exists and self.file_exists(filename, folder_id):
             logger.info(f"⏭️  Skipped (already exists): {filename}")
             return None
@@ -135,3 +134,13 @@ class DriveAPI:
         except Exception as e:
             logger.error(f"List files error: {e}")
             return []
+
+    def check_access(self, file_or_folder_id: str) -> tuple[bool, str]:
+        """Returns (ok, name_or_error_msg). Used for startup pre-flight checks."""
+        if not file_or_folder_id:
+            return False, "id is empty"
+        try:
+            meta = self._get_meta(file_or_folder_id)
+            return True, meta.get("name", "?")
+        except Exception as e:
+            return False, str(e)

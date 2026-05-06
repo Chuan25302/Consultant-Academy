@@ -4,9 +4,8 @@ Auto-tracks real token usage via cost_tracker (when provided).
 Transient errors (5xx, rate limits) auto-retry with exponential backoff.
 """
 import json
-import re
 import logging
-from typing import Optional
+import re
 
 from google import genai
 from google.genai import types
@@ -36,7 +35,7 @@ class GeminiClient:
             ),
         )
 
-    def generate(self, prompt: str, max_tokens: Optional[int] = None,
+    def generate(self, prompt: str, max_tokens: int | None = None,
                  agent_tag: str = "unknown") -> str:
         try:
             response = self._call_model(prompt, max_tokens or self.max_tokens)
