@@ -57,7 +57,34 @@ Then copy each folder's ID from URL `drive.google.com/drive/folders/<ID>` into `
 
 1. Visit https://aistudio.google.com/apikey
 2. Create API key → save as `GOOGLE_API_KEY` in `.env`
-3. Default model: `gemini-2.0-flash` (~$0.075/1M tokens)
+3. Default model: `gemini-2.0-flash` (~$0.075/$0.30 per 1M in/out tokens)
+
+### Per-agent model selection
+
+Each agent can use a different model. Set in `.env` (or GitHub secrets):
+
+```
+GEMINI_MODEL=gemini-2.0-flash         # global default
+GEMINI_MODEL_EXPERT=gemini-2.5-pro    # use Pro for the core content
+GEMINI_MODEL_RECAP=gemini-2.5-flash-lite
+```
+
+Available models (price = USD per 1M tokens, input/output):
+
+| Model | In | Out | Use case |
+|---|---|---|---|
+| `gemini-2.0-flash` | 0.075 | 0.30 | **Default** — fast & cheap |
+| `gemini-2.0-flash-lite` | 0.075 | 0.30 | Cheapest, smaller context window |
+| `gemini-2.5-flash-lite` | 0.10 | 0.40 | Good middle ground |
+| `gemini-2.5-flash` | 0.30 | 2.50 | Much better reasoning |
+| `gemini-2.5-pro` | 1.25 | 10.00 | Best quality (use sparingly) |
+| `gemini-1.5-pro` | 1.25 | 5.00 | Older flagship |
+
+**Recommended setup** for cost-vs-quality balance:
+- `EXPERT` → `gemini-2.5-pro` (core content quality matters most)
+- everything else → `gemini-2.0-flash`
+
+Per-month cost in this configuration is still under $1 for daily Mon–Fri runs (1 Pro call/day × ~3k tokens × $0.01 ≈ $0.20/month, plus negligible Flash calls).
 
 ---
 
@@ -91,14 +118,15 @@ Schedule: Mon–Fri at 00:00 UTC (07:00 Bangkok). Manual trigger via **Actions �
 
 ## 7. Cost Expectations
 
-| Item | Per day | Per month (~22 working days) |
-|---|---|---|
-| Gemini Flash (4 agents × ~1.5k tokens, real usage logged) | ~$0.0005 | ~$0.011 |
-| Cache hits (after first occurrence within 7 days) | $0.00 | ~$0.00 |
-| GitHub Actions | free (public) / 2000 min free (private) | — |
-| **Total** | **<$0.001** | **<$1** |
+Real token counts (`prompt_token_count` + `candidates_token_count`) are written
+to `data/cost_log.jsonl` — uploaded as a workflow artifact every run.
 
-Real token counts come from `response.usage_metadata.total_token_count` and are written to `data/cost_log.jsonl` (uploaded as a workflow artifact every run).
+| Configuration | Per day | Per month (~22 days) |
+|---|---|---|
+| All Flash 2.0 | ~$0.001 | ~$0.02 |
+| Expert=Pro 2.5, rest Flash 2.0 | ~$0.02 | ~$0.40 |
+| All Pro 2.5 | ~$0.10 | ~$2.20 |
+| GitHub Actions | free (public) / 2000 min free (private) | — |
 
 ---
 

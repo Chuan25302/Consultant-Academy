@@ -16,11 +16,21 @@ class Settings:
 
     SLACK_WEBHOOK_URL: str = os.getenv("SLACK_WEBHOOK_URL", "")
 
-    GEMINI_MODEL: str = "gemini-2.0-flash"
+    # Default model for all agents. Override per-agent with
+    # GEMINI_MODEL_<AGENT> env vars (RESEARCH | EXPERT | INDUSTRY |
+    # TRANSLATOR | RECAP). Any model the google-genai SDK accepts.
+    GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
+
     MAX_TOKENS_PER_AGENT: int = 2000
     RESEARCH_CACHE_TTL_DAYS: int = 7
 
     TZ = ZoneInfo("Asia/Bangkok")
+
+    @classmethod
+    def model_for(cls, agent_tag: str) -> str:
+        """Resolve model for a given agent. Env override > default."""
+        env_key = f"GEMINI_MODEL_{agent_tag.upper()}"
+        return os.getenv(env_key) or os.getenv("GEMINI_MODEL") or cls.GEMINI_MODEL
 
 
 def now_bangkok() -> datetime:
