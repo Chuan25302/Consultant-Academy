@@ -54,9 +54,15 @@ class IndexBuilder:
     def __init__(self, drive, settings):
         self.drive = drive
         self.settings = settings
+        self._articles_cache: list[dict] | None = None
 
     def collect_articles(self) -> list[dict]:
-        """Walk KB and parse every article filename we recognize."""
+        """Walk KB and parse every article filename we recognize.
+        Result is cached on the instance so a single run can call this
+        multiple times (e.g. find_related + rebuild) without re-walking Drive.
+        """
+        if self._articles_cache is not None:
+            return self._articles_cache
         files = self.drive.walk(self.settings.FOLDER_KNOWLEDGE_BASE)
         articles = []
         for f in files:
@@ -75,7 +81,31 @@ class IndexBuilder:
                 "cluster": cluster,
                 "filename": f["name"],
             })
+        self._articles_cache = articles
         return articles
+
+    def find_related(self, current_topic: dict, limit: int = 3) -> list[dict]:
+        """Return up to `limit` articles in the same cluster as the current
+        topic (excluding the current one itself). Sorted most-recent first."""
+        cluster = current_topic.get("cluster", "General")
+        title = current_topic.get("topic", "").lower()
+        articles = self.collect_articles()
+        same_cluster = [
+            a for a in articles
+            if a["cluster"] == cluster and a["title"].lower() != title
+        ]
+        return sorted(same_cluster, key=lambda a: a["date"], reverse=True)[:limit]
+
+    @staticmethod
+    def render_related_section(related: list[dict]) -> str:
+        """Markdown snippet to append at the end of an article."""
+        if not related:
+            return ""
+        lines = ["", "## 📚 อ่านเพิ่มในชุดเดียวกัน", ""]
+        for a in related:
+            link = _drive_link(a["id"])
+            lines.append(f"- [L{a['level']}] [{a['title']}]({link}) — {a['date']}")
+        return "\n".join(lines)
 
     def render(self, articles: list[dict]) -> str:
         if not articles:

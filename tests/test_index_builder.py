@@ -114,3 +114,78 @@ def test_rebuild_calls_update_or_create():
     assert kwargs["folder_id"] == "kb-root"
     assert kwargs["mime_type"] == "text/markdown"
     assert result == "fake-id"
+
+
+def test_collect_articles_caches_walk():
+    drive = MagicMock()
+    drive.walk.return_value = []
+    ib = IndexBuilder(drive, _mock_settings())
+    ib.collect_articles()
+    ib.collect_articles()
+    ib.collect_articles()
+    # Should only walk Drive once thanks to instance cache
+    assert drive.walk.call_count == 1
+
+
+def test_find_related_returns_same_cluster_excluding_current():
+    drive = MagicMock()
+    drive.walk.return_value = [
+        {"name": "[L1] 2024-05-06 Chiller 101.docx", "id": "a",
+         "parent_path": "01-Technical-Depth/HVAC-Chillers", "mime": "x"},
+        {"name": "[L1] 2024-05-13 Cooling Tower.docx", "id": "b",
+         "parent_path": "01-Technical-Depth/HVAC-Chillers", "mime": "x"},
+        {"name": "[L2] 2024-09-12 Condenser Fouling.docx", "id": "c",
+         "parent_path": "01-Technical-Depth/HVAC-Chillers", "mime": "x"},
+        {"name": "[L1] 2024-05-20 Motor 101.docx", "id": "d",
+         "parent_path": "01-Technical-Depth/Motors-VFD", "mime": "x"},
+    ]
+    ib = IndexBuilder(drive, _mock_settings())
+    related = ib.find_related({"cluster": "HVAC-Chillers", "topic": "Chiller 101"})
+    titles = [r["title"] for r in related]
+    assert "Chiller 101" not in titles
+    assert "Motor 101" not in titles  # different cluster
+    assert "Cooling Tower" in titles
+    assert "Condenser Fouling" in titles
+
+
+def test_find_related_sorts_most_recent_first():
+    drive = MagicMock()
+    drive.walk.return_value = [
+        {"name": "[L1] 2024-01-01 Old.docx", "id": "1",
+         "parent_path": "p/c", "mime": "x"},
+        {"name": "[L1] 2024-12-31 New.docx", "id": "2",
+         "parent_path": "p/c", "mime": "x"},
+        {"name": "[L1] 2024-06-15 Mid.docx", "id": "3",
+         "parent_path": "p/c", "mime": "x"},
+    ]
+    ib = IndexBuilder(drive, _mock_settings())
+    related = ib.find_related({"cluster": "c", "topic": "anything"})
+    assert [r["title"] for r in related] == ["New", "Mid", "Old"]
+
+
+def test_find_related_respects_limit():
+    drive = MagicMock()
+    drive.walk.return_value = [
+        {"name": f"[L1] 2024-{m:02d}-01 T{m}.docx", "id": str(m),
+         "parent_path": "p/c", "mime": "x"}
+        for m in range(1, 11)
+    ]
+    ib = IndexBuilder(drive, _mock_settings())
+    related = ib.find_related({"cluster": "c", "topic": "x"}, limit=3)
+    assert len(related) == 3
+
+
+def test_render_related_section_empty_returns_empty_string():
+    assert IndexBuilder.render_related_section([]) == ""
+
+
+def test_render_related_section_links_articles():
+    related = [
+        {"level": 1, "date": "2024-05-06", "title": "Chiller 101", "id": "abc"},
+        {"level": 2, "date": "2024-05-13", "title": "Cooling Tower", "id": "def"},
+    ]
+    md = IndexBuilder.render_related_section(related)
+    assert "📚 อ่านเพิ่ม" in md
+    assert "[L1] [Chiller 101](https://drive.google.com/file/d/abc/view)" in md
+    assert "[L2] [Cooling Tower](https://drive.google.com/file/d/def/view)" in md
+    assert "2024-05-06" in md

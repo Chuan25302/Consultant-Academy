@@ -18,6 +18,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from src.agents.designer_agent import DesignerAgent
+from src.agents.editor_agent import EditorAgent
 from src.agents.expert_agent import ExpertAgent
 from src.agents.industry_agent import IndustryAgent
 from src.agents.recap_agent import RecapAgent
@@ -106,7 +107,14 @@ def main(date: str = None, dry_run: bool = False,
     translated = TranslatorAgent(gemini).simplify(
         expert, industry_ctx, topic["topic"], topic["pillar"])
 
-    email_html = DesignerAgent.create_email(translated, topic)
+    edited = EditorAgent(gemini).review(translated)
+
+    # Connector: append "อ่านเพิ่ม" linking to articles in the same cluster
+    index = IndexBuilder(drive, s)
+    related = index.find_related(topic) if not dry_run else []
+    final_md = edited + IndexBuilder.render_related_section(related)
+
+    email_html = DesignerAgent.create_email(final_md, topic)
 
     date_str   = topic["date"].strftime("%Y-%m-%d")
     month_path = topic["date"].strftime("%Y/%B").lower()
@@ -128,12 +136,15 @@ def main(date: str = None, dry_run: bool = False,
 
         kb_folder = drive.get_or_create_folder(
             f"{pillar_dir}/{cluster}", s.FOLDER_KNOWLEDGE_BASE)
-        docx_bytes = markdown_to_docx_bytes(translated, title=topic["topic"])
+        docx_bytes = markdown_to_docx_bytes(edited, title=topic["topic"])
         drive.upload(docx_filename, docx_bytes, kb_folder, DOCX_MIME)
 
-        # Rebuild master index so new hires always have an up-to-date map
+        # Rebuild master index so new hires always have an up-to-date map.
+        # Reuse the same IndexBuilder instance — its article cache was
+        # already populated by find_related() above.
         logger.info("📚 Rebuilding Knowledge Base master index...")
-        IndexBuilder(drive, s).rebuild()
+        index._articles_cache = None  # invalidate so the new article shows up
+        index.rebuild()
 
     daily_cost = cost.daily_total()
     logger.info(f"💰 Daily cost: ${daily_cost:.4f}")

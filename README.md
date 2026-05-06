@@ -11,12 +11,16 @@ Daily Thai-language content automation for the energy consulting team. Runs Mon�
 
 ## Pipeline
 ```
-Calendar → Research → Expert → Industry → Translator → Designer → Drive → Index
-                                              ↓
-                              (RECAP pillar)  Recap Agent
+Calendar → Research → Expert → Industry → Translator → Editor → Connector → Designer → Drive → Index
+                                                          ↓         ↓                              ↓
+                                          (regen if quality fails)  +"อ่านเพิ่ม" links     +master index
 ```
 
-5 LLM agents (Research, Expert, Industry, Translator, Recap) + 1 local renderer (Designer) + 1 local index builder. Research is cached locally for 7 days; expired entries are auto-pruned. Knowledge Base is organized by pillar → cluster → level with an auto-regenerated master index so new hires can follow a single file to catch up.
+6 LLM agents (Research, Expert, Industry, Translator, Editor, Recap) + 2 local helpers (Designer, IndexBuilder/Connector). Research is cached locally for 7 days; expired entries are auto-pruned. Knowledge Base is organized by pillar → cluster → level with an auto-regenerated master index so new hires can follow a single file to catch up.
+
+**Editor** runs a programmatic quality pre-check (Consultant Move section, glossary, ≥3 numbers with units, length ≤600 words) — calls Gemini to fix only if something's missing, so good drafts pass through with zero LLM cost.
+
+**Connector** queries the Knowledge Base for the same `cluster` and appends a "📚 อ่านเพิ่มในชุดเดียวกัน" section linking to 3 most-recent related articles in Drive — turns isolated daily emails into a connected knowledge web.
 
 ## Cost
 < $1/month for daily content, even with no cache hits. Real token usage logged via `response.usage_metadata`. See `docs/SETUP.md`.
@@ -43,7 +47,7 @@ Full setup in [`docs/SETUP.md`](docs/SETUP.md). Content schedule in [`docs/Conte
 ## Development
 ```bash
 pip install -r requirements-dev.txt
-pytest         # 74 tests
+pytest         # 89 tests
 ruff check .   # lint
 ```
 
