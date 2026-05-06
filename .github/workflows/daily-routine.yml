@@ -1,0 +1,44 @@
+name: Consultant Academy Daily Routine
+
+on:
+  schedule:
+    - cron: "0 0 * * 1-5"   # Mon–Fri 07:00 Bangkok (UTC+7)
+  workflow_dispatch:          # Manual trigger for testing
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Write credentials from secrets
+        run: |
+          echo '${{ secrets.GOOGLE_TOKEN_JSON }}' > token.json
+          echo '${{ secrets.GOOGLE_CREDENTIALS_JSON }}' > credentials.json
+
+      - name: Run daily routine
+        env:
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          CALENDAR_FILE_ID: ${{ secrets.CALENDAR_FILE_ID }}
+          FOLDER_EMAIL_ARCHIVES: ${{ secrets.FOLDER_EMAIL_ARCHIVES }}
+          FOLDER_KNOWLEDGE_BASE: ${{ secrets.FOLDER_KNOWLEDGE_BASE }}
+          FOLDER_PROGRAM_MGMT: ${{ secrets.FOLDER_PROGRAM_MGMT }}
+        run: python src/main.py
+
+      - name: Upload cost log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cost-log-${{ github.run_id }}
+          path: data/cost_log.jsonl
+          retention-days: 30
