@@ -1,6 +1,7 @@
 """
 Gemini Flash client using new google-genai SDK.
 Auto-tracks real token usage via cost_tracker (when provided).
+Transient errors (5xx, rate limits) auto-retry with exponential backoff.
 """
 import json
 import re
@@ -11,6 +12,7 @@ from google import genai
 from google.genai import types
 
 from src.config.settings import Settings
+from src.utils.retry import with_retries
 
 logger = logging.getLogger(__name__)
 
@@ -23,21 +25,25 @@ class GeminiClient:
         self.cost_tracker = cost_tracker
         logger.info(f"✅ Gemini initialized ({self.model})")
 
+    @with_retries
+    def _call_model(self, prompt: str, max_tokens: int):
+        return self.client.models.generate_content(
+            model=self.model,
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                max_output_tokens=max_tokens,
+                temperature=0.7,
+            ),
+        )
+
     def generate(self, prompt: str, max_tokens: Optional[int] = None,
                  agent_tag: str = "unknown") -> str:
         try:
-            response = self.client.models.generate_content(
-                model=self.model,
-                contents=prompt,
-                config=types.GenerateContentConfig(
-                    max_output_tokens=max_tokens or self.max_tokens,
-                    temperature=0.7,
-                ),
-            )
+            response = self._call_model(prompt, max_tokens or self.max_tokens)
             self._track(response, agent_tag)
             return response.text or ""
         except Exception as e:
-            logger.error(f"Gemini error ({agent_tag}): {e}")
+            logger.error(f"Gemini error ({agent_tag}) after retries: {e}")
             return f"[Error: {e}]"
 
     def generate_json(self, prompt: str, agent_tag: str = "unknown") -> dict:
@@ -46,7 +52,6 @@ class GeminiClient:
             max_tokens=1500, agent_tag=agent_tag,
         )
         raw = re.sub(r"```json\s*|\s*```", "", raw).strip()
-        # Strip stray prose before/after JSON object
         match = re.search(r"\{.*\}", raw, flags=re.DOTALL)
         if match:
             raw = match.group(0)

@@ -2,12 +2,14 @@
 Designer Agent — local HTML rendering, ZERO API cost.
 Converts Markdown → professional Thai HTML email with INLINE styles
 (via premailer) so it survives Gmail/Outlook stripping.
+Markdown rendering uses the python-markdown library (battle-tested);
+glossary + Consultant Move boxes are added by post-processing the HTML.
 """
 import logging
 import re
-from datetime import datetime
 
 import cssutils
+import markdown as md_lib
 from premailer import transform
 
 from src.config.settings import now_bangkok
@@ -15,7 +17,7 @@ from src.config.settings import now_bangkok
 logger = logging.getLogger(__name__)
 
 # cssutils (used by premailer) doesn't understand CSS3 gradients and logs
-# noisy ERRORs. We don't care — un-inlinable rules stay in <style> anyway.
+# noisy ERRORs. Un-inlinable rules stay in <style> anyway.
 cssutils.log.setLevel(logging.FATAL)
 
 PILLAR_CONFIG = {
@@ -32,6 +34,15 @@ MONTHS_TH = {
     9: "กันยายน", 10: "ตุลาคม", 11: "พฤศจิกายน", 12: "ธันวาคม"
 }
 
+CMOVE_RE = re.compile(
+    r'<h2>Consultant Move</h2>(.*?)(?=<h2|$)',
+    flags=re.DOTALL | re.IGNORECASE,
+)
+GLOSSARY_RE = re.compile(
+    r'<p>(📖\s*ศัพท์น่ารู้:.+?)</p>',
+    flags=re.DOTALL,
+)
+
 
 class DesignerAgent:
 
@@ -39,7 +50,7 @@ class DesignerAgent:
     def create_email(content: str, metadata: dict) -> str:
         pillar   = metadata.get("pillar", "TECHNICAL")
         topic    = metadata.get("topic", "Untitled")
-        date     = metadata.get("date", now_bangkok())
+        date     = metadata.get("date") or now_bangkok()
         industry = metadata.get("industry", "")
         cfg      = PILLAR_CONFIG.get(pillar, PILLAR_CONFIG["TECHNICAL"])
         color    = cfg["color"]
@@ -107,30 +118,13 @@ body{{font-family:'Sarabun','Segoe UI',sans-serif;background:#F5F5F5;color:#333;
 
     @staticmethod
     def _md_to_html(md: str) -> str:
-        h = md
-        h = re.sub(r"^## (.+)$",  r"<h2>\1</h2>", h, flags=re.MULTILINE)
-        h = re.sub(r"^### (.+)$", r"<h3>\1</h3>", h, flags=re.MULTILINE)
-        h = re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", h)
-        h = re.sub(r"\*(.+?)\*",     r"<em>\1</em>", h)
-        h = re.sub(r"^\- (.+)$", r"<li>\1</li>", h, flags=re.MULTILINE)
-        h = re.sub(r"((?:<li>.*?</li>\n?)+)", r"<ul>\1</ul>\n", h, flags=re.DOTALL)
-        h = re.sub(r"(📖 ศัพท์น่ารู้:.+)",
-                   r'<div class="glossary">\1</div>', h)
-        h = re.sub(
-            r"<h2>Consultant Move</h2>(.*?)(?=<h2>|$)",
+        html = md_lib.markdown(md, extensions=["sane_lists"])
+        html = CMOVE_RE.sub(
             r'<div class="cmove"><h3>💬 Consultant Move</h3>\1</div>',
-            h, flags=re.DOTALL,
+            html,
         )
-        h = re.sub(
-            r"<h3>Consultant Move</h3>(.*?)(?=<h2>|<h3>|<div|$)",
-            r'<div class="cmove"><h3>💬 Consultant Move</h3>\1</div>',
-            h, flags=re.DOTALL,
+        html = GLOSSARY_RE.sub(
+            r'<div class="glossary">\1</div>',
+            html,
         )
-        parts = h.split("\n\n")
-        out = []
-        for p in parts:
-            p = p.strip()
-            out.append(f"<p>{p}</p>" if p and not p.startswith("<") else p)
-        h = "\n".join(out)
-        h = h.replace("\n---\n", "<hr style='border:none;border-top:1px solid #ddd;margin:20px 0'>")
-        return h
+        return html

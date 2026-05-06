@@ -1,6 +1,7 @@
 """
 Google Drive API v3 — service account auth (headless-friendly).
 Folders must be shared with the service account email (write access).
+All API calls auto-retry on transient errors (HTTP 429/5xx, network blips).
 """
 import io
 import logging
@@ -9,6 +10,8 @@ from typing import Optional, Union
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseUpload
+
+from src.utils.retry import with_retries
 
 logger = logging.getLogger(__name__)
 
@@ -30,17 +33,42 @@ class DriveAPI:
         )
         return build("drive", "v3", credentials=creds, cache_discovery=False)
 
+    @with_retries
+    def _get_meta(self, file_id: str) -> dict:
+        return self.service.files().get(
+            fileId=file_id, fields="mimeType,name"
+        ).execute()
+
+    @with_retries
+    def _export(self, file_id: str, mime: str = "text/plain") -> bytes:
+        return self.service.files().export(
+            fileId=file_id, mimeType=mime
+        ).execute()
+
+    @with_retries
+    def _get_media(self, file_id: str) -> bytes:
+        return self.service.files().get_media(fileId=file_id).execute()
+
+    @with_retries
+    def _list(self, q: str, fields: str = "files(id, name)", page_size: int = 20):
+        return self.service.files().list(
+            q=q, fields=fields, pageSize=page_size
+        ).execute()
+
+    @with_retries
+    def _create(self, body: dict, media=None, fields: str = "id"):
+        kwargs = {"body": body, "fields": fields}
+        if media is not None:
+            kwargs["media_body"] = media
+        return self.service.files().create(**kwargs).execute()
+
     def download_file(self, file_id: str) -> str:
         try:
-            meta = self.service.files().get(
-                fileId=file_id, fields="mimeType,name"
-            ).execute()
+            meta = self._get_meta(file_id)
             if meta.get("mimeType") == GOOGLE_DOC_MIME:
-                content = self.service.files().export(
-                    fileId=file_id, mimeType="text/plain"
-                ).execute()
+                content = self._export(file_id, "text/plain")
             else:
-                content = self.service.files().get_media(fileId=file_id).execute()
+                content = self._get_media(file_id)
             return content.decode("utf-8")
         except Exception as e:
             logger.error(f"Download failed ({file_id}): {e}")
@@ -51,9 +79,7 @@ class DriveAPI:
         q = (f"name='{name_esc}' and '{folder_id}' in parents "
              f"and trashed=false")
         try:
-            res = self.service.files().list(
-                q=q, fields="files(id)", pageSize=1
-            ).execute()
+            res = self._list(q, fields="files(id)", page_size=1)
             return len(res.get("files", [])) > 0
         except Exception as e:
             logger.error(f"file_exists check failed: {e}")
@@ -71,9 +97,7 @@ class DriveAPI:
             media = MediaIoBaseUpload(
                 io.BytesIO(data), mimetype=mime_type, resumable=True
             )
-            file = self.service.files().create(
-                body=meta, media_body=media, fields="id"
-            ).execute()
+            file = self._create(meta, media=media)
             logger.info(f"✅ Uploaded: {filename}")
             return file.get("id")
         except Exception as e:
@@ -94,11 +118,11 @@ class DriveAPI:
         name_esc = name.replace("\\", "\\\\").replace("'", "\\'")
         q = (f"name='{name_esc}' and '{parent_id}' in parents "
              f"and mimeType='{FOLDER_MIME}' and trashed=false")
-        res = self.service.files().list(q=q, fields="files(id)", pageSize=1).execute()
+        res = self._list(q, fields="files(id)", page_size=1)
         if res["files"]:
             return res["files"][0]["id"]
         meta = {"name": name, "mimeType": FOLDER_MIME, "parents": [parent_id]}
-        folder = self.service.files().create(body=meta, fields="id").execute()
+        folder = self._create(meta)
         logger.debug(f"📁 Created folder: {name}")
         return folder.get("id")
 
@@ -106,9 +130,7 @@ class DriveAPI:
         prefix_esc = name_prefix.replace("\\", "\\\\").replace("'", "\\'")
         q = f"name contains '{prefix_esc}' and trashed=false"
         try:
-            res = self.service.files().list(
-                q=q, fields="files(id, name)", pageSize=20
-            ).execute()
+            res = self._list(q, fields="files(id, name)", page_size=20)
             return res.get("files", [])
         except Exception as e:
             logger.error(f"List files error: {e}")
