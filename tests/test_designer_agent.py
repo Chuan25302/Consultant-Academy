@@ -27,6 +27,11 @@ def test_renders_all_pillars(pillar):
     assert PILLAR_CONFIG[pillar]["label"] in html
 
 
+def test_compliance_pillar_registered():
+    assert "COMPLIANCE" in PILLAR_CONFIG
+    assert PILLAR_CONFIG["COMPLIANCE"]["label"] == "มาตรฐาน/Compliance"
+
+
 def test_industry_badge_shown():
     html = DesignerAgent.create_email("test", _meta(industry="Steel"))
     assert "🏭 Steel" in html

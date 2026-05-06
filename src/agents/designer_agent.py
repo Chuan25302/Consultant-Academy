@@ -21,11 +21,12 @@ logger = logging.getLogger(__name__)
 cssutils.log.setLevel(logging.FATAL)
 
 PILLAR_CONFIG = {
-    "TECHNICAL": {"color": "#0D47A1", "rgba": "13,71,161",  "icon": "⚙️", "label": "เชิงเทคนิค"},
-    "INDUSTRY":  {"color": "#E65100", "rgba": "230,81,0",   "icon": "🏭", "label": "อุตสาหกรรม"},
-    "FRAMEWORK": {"color": "#1B5E20", "rgba": "27,94,32",   "icon": "📐", "label": "กรอบการวิเคราะห์"},
-    "SOFTSKILL": {"color": "#4A148C", "rgba": "74,20,140",  "icon": "💡", "label": "ทักษะที่ปรึกษา"},
-    "RECAP":     {"color": "#37474F", "rgba": "55,71,79",   "icon": "📋", "label": "สรุปประจำสัปดาห์"},
+    "TECHNICAL":  {"color": "#0D47A1", "rgba": "13,71,161",  "icon": "⚙️", "label": "เชิงเทคนิค"},
+    "INDUSTRY":   {"color": "#E65100", "rgba": "230,81,0",   "icon": "🏭", "label": "อุตสาหกรรม"},
+    "FRAMEWORK":  {"color": "#1B5E20", "rgba": "27,94,32",   "icon": "📐", "label": "กรอบการวิเคราะห์"},
+    "SOFTSKILL":  {"color": "#4A148C", "rgba": "74,20,140",  "icon": "💡", "label": "ทักษะที่ปรึกษา"},
+    "COMPLIANCE": {"color": "#B71C1C", "rgba": "183,28,28",  "icon": "📜", "label": "มาตรฐาน/Compliance"},
+    "RECAP":      {"color": "#37474F", "rgba": "55,71,79",   "icon": "📋", "label": "สรุปประจำสัปดาห์"},
 }
 
 MONTHS_TH = {

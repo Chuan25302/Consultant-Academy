@@ -95,3 +95,11 @@ def test_kv_order_does_not_matter():
     t = CalendarParser(md).get_topic(_date("2024-05-06"))
     assert t["cluster"] == "Motors"
     assert t["level"] == 3
+
+
+def test_compliance_pillar_parses():
+    md = ("- **2024-09-16**: COMPLIANCE | พ.ร.บ. ส่งเสริมการอนุรักษ์พลังงาน 2535 | "
+          "General | DEDE,energy law | cluster=Thai-Energy-Law | level=1")
+    t = CalendarParser(md).get_topic(_date("2024-09-16"))
+    assert t["pillar"] == "COMPLIANCE"
+    assert t["cluster"] == "Thai-Energy-Law"

@@ -24,6 +24,7 @@ PILLAR_LABELS = {
     "02-Industry-Business-Logic": "INDUSTRY — ตามอุตสาหกรรม",
     "03-Diagnostic-Frameworks":   "FRAMEWORK — กรอบการวิเคราะห์",
     "04-Soft-Skills-Positioning": "SOFTSKILL — ทักษะที่ปรึกษา",
+    "05-Standards-Compliance":    "COMPLIANCE — มาตรฐาน/การปฏิบัติตามกฎ",
 }
 
 # [L1] 2024-05-06 Topic.docx

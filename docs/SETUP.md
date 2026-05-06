@@ -121,14 +121,14 @@ Schedule: Mon–Fri at 00:00 UTC (07:00 Bangkok). Manual trigger via **Actions �
 Real token counts (`prompt_token_count` + `candidates_token_count`) are written
 to `data/cost_log.jsonl` — uploaded as a workflow artifact every run.
 
-| Configuration | Per day | Per month (~22 days) |
-|---|---|---|
-| All Flash 2.0 | ~$0.002 | ~$0.04 |
-| **Recommended**: Pro on Expert + FactChecker, Flash 2.5 on Industry + Editor, Flash 2.0 elsewhere | ~$0.05 (≈1.5 บาท) | ~$1.10 (≈30–40 บาท) |
-| All Pro 2.5 | ~$0.15 | ~$3.30 |
-| GitHub Actions | free (public) / 2000 min free (private) | — |
+| Configuration | Mon–Thu | Fri (recap only) | Per month |
+|---|---|---|---|
+| All Flash 2.0 | ~$0.002 (~0.07 ฿) | ~$0.001 | ~$0.04 (~1.5 ฿) |
+| **Recommended**: Pro 2.5 on Expert + FactChecker + Editor, Flash 2.5 on Research/Industry/Translator, Flash 2.0 on Recap | ~$0.06 (~2 ฿) | ~$0.001 (~0.04 ฿) | ~$1.20 (~40 ฿) |
+| All Pro 2.5 | ~$0.15 | ~$0.01 | ~$3.30 |
+| GitHub Actions | free (public) / 2000 min free (private) | — | — |
 
-The recommended config keeps spend under 2 บาท/day while running Pro 2.5 on the two agents that most need accuracy: the Expert (core technical content) and the FactChecker (anti-hallucination gate).
+Recommended config keeps Mon–Thu inside the 2.5 บาท ceiling while running Pro 2.5 on the three quality-critical agents (Expert for core content, FactChecker for anti-hallucination, Editor for final QA). Friday's recap is intentionally cheap — just summarizes existing Mon–Thu emails.
 
 ---
 
@@ -142,7 +142,7 @@ Edit the calendar file in Drive (and optionally `docs/Content-Calendar-2024.md` 
 
 | Field | Required | Notes |
 |---|---|---|
-| `PILLAR` | yes | `TECHNICAL` \| `INDUSTRY` \| `FRAMEWORK` \| `SOFTSKILL` \| `RECAP` |
+| `PILLAR` | yes | `TECHNICAL` \| `INDUSTRY` \| `FRAMEWORK` \| `SOFTSKILL` \| `COMPLIANCE` \| `RECAP` |
 | Topic | yes | Used as the email/article title |
 | Industry | yes | Used by Industry agent (`General` skips it) |
 | Keywords | yes | Used by Research agent |

@@ -5,9 +5,14 @@ Format:
 - **YYYY-MM-DD**: PILLAR | หัวข้อ | Sector | keyword1,keyword2 | cluster=X | level=N
 ```
 
+- `PILLAR`: TECHNICAL | INDUSTRY | FRAMEWORK | SOFTSKILL | **COMPLIANCE** | RECAP
 - `cluster=...` ชื่อ subfolder ใน Knowledge Base (เช่น HVAC-Chillers, Motors-VFD)
 - `level=1|2|3` 1=พื้นฐาน, 2=กลาง, 3=ขั้นสูง (ถ้าไม่ระบุ = 1)
-- Cluster + Level ใหม่เพิ่มมาเพื่อจัดหมวดหมู่ Knowledge Base ให้คนใหม่ตามทันได้
+- ทุกวันศุกร์เป็น **RECAP** (สรุปสัปดาห์อัตโนมัติ จาก Mon–Thu)
+
+อุตสาหกรรมที่ครอบคลุม (6 ครอบครัว):
+อาหาร/ยา + Cold Storage | Manufacturing ทั่วไป | Petrochem & Chemical |
+Heavy (Steel/Cement/Glass) | Large Buildings | Waste Management
 
 ## May 2024 — Week 1–2: โรงแรม (Hospitality)
 
@@ -121,18 +126,50 @@ Format:
 - **2024-08-08**: SOFTSKILL | Executive Briefing: 1 Slide, 3 Numbers, 1 Ask | General | executive,briefing,one-pager | cluster=Executive-Communication | level=3
 - **2024-08-09**: RECAP | สรุปสัปดาห์ที่ 14 | General | recap
 
-## August 2024 — Week 15–16: เหมืองแร่ & จัดการของเสีย (Mining & Waste)
+## August 2024 — Week 15–16: แก้ว (Glass) & จัดการของเสีย (Waste)
 
-### Week 15
-- **2024-08-12**: TECHNICAL | Crusher + Ball Mill: Specific Energy Consumption | Mining | crusher,ball mill,SEC,grinding | cluster=Crushing-Grinding | level=1
-- **2024-08-13**: INDUSTRY | เหมืองแร่: โม่ บด ย่อย + คัดแยก Energy Profile | Mining | mining,crushing,flotation,separation | cluster=Mining | level=1
+### Week 15 — Glass Manufacturing
+- **2024-08-12**: TECHNICAL | Glass Melting Furnace: Regenerator Efficiency + Oxy-fuel | Glass | glass,melting,regenerator,oxy-fuel | cluster=Kilns-Furnaces | level=2
+- **2024-08-13**: INDUSTRY | โรงงานแก้ว: Float Line + Annealing Lehr Energy Profile | Glass | glass,float,annealing,lehr | cluster=Glass-Manufacturing | level=1
 - **2024-08-14**: FRAMEWORK | Energy Audit Type II: DEDE Standard | General | DEDE,energy audit,type II | cluster=Energy-Audit | level=2
 - **2024-08-15**: SOFTSKILL | Negotiation: Anchor + ZOPA + BATNA | General | negotiation,BATNA,ZOPA,anchor | cluster=Negotiation | level=2
 - **2024-08-16**: RECAP | สรุปสัปดาห์ที่ 15 | General | recap
 
-### Week 16
+### Week 16 — Waste Management
 - **2024-08-19**: TECHNICAL | Aerator + Blower: Wastewater Treatment Energy | Waste | aerator,blower,DO,wastewater | cluster=Wastewater | level=1
 - **2024-08-20**: INDUSTRY | โรงงานจัดการสิ่งปฏิกูล (ประเภท 105): Sorting + Landfill + Biogas | Waste | waste,landfill,biogas,sorting | cluster=Waste-Management | level=1
-- **2024-08-21**: FRAMEWORK | Lifecycle Assessment (LCA) เบื้องต้น | General | LCA,lifecycle,carbon | cluster=Sustainability | level=2
+- **2024-08-21**: COMPLIANCE | EHIA + รายงานตามประกาศกระทรวง: ของเสีย/อากาศ | Waste | EHIA,EIA,emission,thai law | cluster=Environmental-Compliance | level=2
 - **2024-08-22**: SOFTSKILL | Storytelling for Consultants: STAR + ROI | General | storytelling,STAR,case | cluster=Communication | level=2
 - **2024-08-23**: RECAP | สรุปสัปดาห์ที่ 16 | General | recap
+
+## August–September 2024 — Week 17–18: Chemical & Cold Storage
+
+### Week 17 — Chemical Plants
+- **2024-08-26**: TECHNICAL | Reactor: Heat/Cool Cycle Optimization + Solvent Recovery | Chemical | reactor,solvent,heat exchanger,batch | cluster=Reactors | level=2
+- **2024-08-27**: INDUSTRY | โรงงานเคมีภัณฑ์: Batch vs Continuous Energy Profile | Chemical | chemical,batch,continuous,scrubber | cluster=Chemical | level=1
+- **2024-08-28**: COMPLIANCE | ISO 50001: Energy Management System Roadmap | General | ISO 50001,EnMS,implementation | cluster=ISO-50001 | level=2
+- **2024-08-29**: SOFTSKILL | Account Strategy: Multi-stakeholder RACI + Champion | General | RACI,champion,stakeholder | cluster=Account-Strategy | level=2
+- **2024-08-30**: RECAP | สรุปสัปดาห์ที่ 17 | General | recap
+
+### Week 18 — Cold Storage
+- **2024-09-02**: TECHNICAL | Refrigeration Cycle: COP, NH3 vs CO2, Defrost Strategy | Cold-Storage | refrigeration,COP,NH3,CO2,defrost | cluster=Refrigeration | level=2
+- **2024-09-03**: INDUSTRY | คลังห้องเย็น: Door Loss + Insulation + Floor Heating | Cold-Storage | cold storage,door,insulation,floor | cluster=Cold-Storage | level=1
+- **2024-09-04**: COMPLIANCE | HACCP Energy Implications สำหรับ Cold Chain | Food | HACCP,cold chain,traceability | cluster=HACCP | level=2
+- **2024-09-05**: FRAMEWORK | Loss Mapping: หา energy loss tree | General | loss tree,sankey,attribution | cluster=Energy-Audit | level=2
+- **2024-09-06**: RECAP | สรุปสัปดาห์ที่ 18 | General | recap
+
+## September 2024 — Week 19–20: Large Buildings & Standards Deep-Dive
+
+### Week 19 — Large Commercial Buildings
+- **2024-09-09**: TECHNICAL | VAV vs CAV: เลือก HVAC strategy + chiller plant optimization | Buildings | VAV,CAV,chiller plant,buildings | cluster=HVAC-Buildings | level=2
+- **2024-09-10**: INDUSTRY | อาคารสำนักงาน/ห้าง/รพ.: EUI Benchmark + Plug Load + Lighting | Buildings | EUI,plug load,lighting,buildings | cluster=Large-Buildings | level=1
+- **2024-09-11**: COMPLIANCE | LEED / TREES (TGBI): ทำเงินจาก Green Building Cert | Buildings | LEED,TREES,green building | cluster=Green-Building | level=2
+- **2024-09-12**: SOFTSKILL | Executive Briefing: 1 Slide, 3 Numbers, 1 Ask | General | executive,briefing,one-pager | cluster=Executive-Communication | level=3
+- **2024-09-13**: RECAP | สรุปสัปดาห์ที่ 19 | General | recap
+
+### Week 20 — Standards Deep-Dive (มาตรฐานที่โรงงานต้องใช้)
+- **2024-09-16**: COMPLIANCE | พ.ร.บ. ส่งเสริมการอนุรักษ์พลังงาน 2535: โรงงาน/อาคารควบคุม | General | DEDE,energy law,thai | cluster=Thai-Energy-Law | level=1
+- **2024-09-17**: COMPLIANCE | GMP / cGMP สำหรับ Energy Systems ในโรงงานยา/อาหาร | Pharma | GMP,cGMP,pharma,validation | cluster=GMP | level=2
+- **2024-09-18**: COMPLIANCE | ISO 14001 + GHG Protocol: Carbon Footprint โรงงาน | General | ISO 14001,GHG,carbon | cluster=Carbon-Reporting | level=2
+- **2024-09-19**: COMPLIANCE | มอก. (TIS) สำหรับ motor / chiller / boiler ที่นิยมอ้าง | General | TIS,IE3,efficiency standard | cluster=Thai-TIS | level=1
+- **2024-09-20**: RECAP | สรุปสัปดาห์ที่ 20 | General | recap

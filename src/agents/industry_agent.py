@@ -9,39 +9,47 @@ from src.integrations.gemini_client import GeminiClient
 logger = logging.getLogger(__name__)
 
 INDUSTRY_KNOWLEDGE = """\
-6 ครอบครัวอุตสาหกรรมที่ PTT NGR ESP ครอบคลุม:
+ครอบครัวอุตสาหกรรมที่ PTT NGR ESP ครอบคลุม:
 
-1. **อาหารและยา (Food & Medicine)**
+1. **อาหารและยา + Cold Storage (Food / Pharma / Cold Chain)**
    - โรงงานแปรรูปอาหาร: cold chain, steam, CIP, HACCP
-   - โรงงานผลิตยา: clean room, GMP, WFI, critical uptime
+   - โรงงานผลิตยา: clean room, GMP/cGMP, WFI, critical uptime
    - โรงงานน้ำตาล: bagasse boiler, cogeneration, evaporator
+   - Cold Storage / คลังห้องเย็น: refrigeration cycle, door loss, defrost, NH3/CO2
 
 2. **อุตสาหกรรมทั่วไป (General Manufacturing)**
    - ชิ้นส่วนยานยนต์: stamping, paint shop, assembly line
    - เครื่องใช้ไฟฟ้า/อิเล็กทรอนิกส์: SMT, soldering, clean room
    - เฟอร์นิเจอร์: dust collection, paint, pressing
 
-3. **ปิโตรเคมีและเคมีภัณฑ์ (Petrochemicals)**
+3. **ปิโตรเคมีและเคมีภัณฑ์ (Petrochemicals & Chemical)**
    - โรงกลั่นน้ำมัน: distillation, cracking, hydrogen plant
    - โรงงานพลาสติก: extrusion, injection mold, polymerization
+   - โรงงานเคมีภัณฑ์: reactor, batch vs continuous, solvent recovery, scrubber
 
 4. **อุตสาหกรรมหนัก (Heavy Industry)**
    - เหล็กกล้า: EAF, rolling mill, reheating furnace
    - ซีเมนต์: kiln, raw mill, finish mill, preheater
+   - แก้ว (Glass Manufacturing): glass melting furnace, regenerator, oxy-fuel,
+     float bath, annealing lehr, electric boost
 
-5. **เหมืองแร่ (Mining)**
-   - โม่/บด/ย่อยหิน: crusher, ball mill, conveyor
-   - คัดแยกแร่: flotation, magnetic separator, dryer
+5. **อาคารขนาดใหญ่ (Large Commercial Buildings)**
+   - โรงแรม / โรงพยาบาล / ห้างสรรพสินค้า / อาคารสำนักงาน / Data Center
+   - ใช้พลังงานหลัก: HVAC (chiller plant), lighting, plug load, lift/escalator
+   - มาตรฐาน: ASHRAE 90.1, LEED, BREEAM, TREES (TGBI), อาคารควบคุมตาม พ.ร.บ. 2535
 
 6. **จัดการสิ่งปฏิกูล (Waste Management)**
    - คัดแยก/ฝังกลบ (ประเภท 105): conveyor, shredder, baler
-   - ปรับคุณภาพของเสียรวม: aeration, pump, mixer, biogas
+   - ปรับคุณภาพของเสียรวม: aeration blower, pump, mixer, biogas
 
 KPI ที่แต่ละกลุ่มสนใจ (วัด energy intensity ตามนี้):
 - Food: kWh/ton สินค้า | Pharma: kWh/batch | Sugar: kWh/ตันอ้อย
+- Cold Storage: kWh/m³·day หรือ kWh/ton·day
 - Manufacturing: kWh/หน่วย | Refinery: kWh/บาเรล | Plastic: kWh/kg
-- Steel: kWh/ตันเหล็ก | Cement: kWh/ตันปูน
-- Mining: kWh/ตันสินแร่ | Waste: kWh/ตันของเสีย
+- Chemical: kWh/ton สารผลิต
+- Steel: kWh/ตันเหล็ก | Cement: kWh/ตันปูน | Glass: kWh/ตันแก้วหลอม
+- Buildings: kWh/m²·yr (EUI) | Data Center: PUE
+- Waste: kWh/ตันของเสีย
 """
 
 ANTI_HALLUC = """\

@@ -24,7 +24,11 @@ Calendar → Research → Expert(by-pillar) → Industry → FactChecker → Tra
 - **Research / Expert / Translator** prompts forbid fabricating company names, specific numbers without source, or invented standards. Range values (`15–25%`) and qualifiers (`ประมาณ`) are required when source is missing.
 - **FactChecker** (Pro 2.5 by default) runs heuristic regex checks for company names, ungrounded percentages, person names. If any flag triggers, sends content + research data to Pro to soften unverifiable claims.
 - **Editor** does a final regex spot-check for leftover company names and structural quality (Consultant Move, glossary, ≥3 numbers with units, length ≤600 words).
-- **Pillar-aware Expert prompts**: TECHNICAL focuses on equipment + ROI; INDUSTRY on sector profile; FRAMEWORK teaches a named methodology; SOFTSKILL **must use** a named framework (BANT/MEDDIC/SPIN/Sandler/Challenger/5W1H/RACI/...).
+- **Pillar-aware Expert prompts** (5 templates): TECHNICAL (equipment + ROI), INDUSTRY (sector profile), FRAMEWORK (named methodology), SOFTSKILL (**must use** a named framework: BANT/MEDDIC/SPIN/Sandler/Challenger/RACI/...), COMPLIANCE (real Thai/international standards: พ.ร.บ. 2535, ISO 50001/14001, GMP, HACCP, มอก./TIS, LEED/TREES).
+
+### Industry coverage (6 families)
+
+Food & Pharma + Cold Storage | General Manufacturing | Petrochem & Chemical | Heavy (Steel/Cement/**Glass**) | **Large Commercial Buildings** | Waste Management.
 
 ## Cost
 < $1/month for daily content, even with no cache hits. Real token usage logged via `response.usage_metadata`. See `docs/SETUP.md`.
@@ -51,7 +55,7 @@ Full setup in [`docs/SETUP.md`](docs/SETUP.md). Content schedule in [`docs/Conte
 ## Development
 ```bash
 pip install -r requirements-dev.txt
-pytest         # 99 tests
+pytest         # 112 tests
 ruff check .   # lint
 ```
 
