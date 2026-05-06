@@ -61,6 +61,12 @@ class DriveAPI:
             kwargs["media_body"] = media
         return self.service.files().create(**kwargs).execute()
 
+    @with_retries
+    def _update(self, file_id: str, media, fields: str = "id"):
+        return self.service.files().update(
+            fileId=file_id, media_body=media, fields=fields
+        ).execute()
+
     def download_file(self, file_id: str) -> str:
         try:
             meta = self._get_meta(file_id)
@@ -124,6 +130,55 @@ class DriveAPI:
         folder = self._create(meta)
         logger.debug(f"📁 Created folder: {name}")
         return folder.get("id")
+
+    def update_or_create(self, filename: str, content: str | bytes,
+                         folder_id: str, mime_type: str = "text/markdown") -> str | None:
+        """Upload a file, replacing any existing one with the same name in the
+        same folder. Used for auto-generated artifacts (indexes) that should
+        always reflect the latest state."""
+        try:
+            data = content.encode("utf-8") if isinstance(content, str) else content
+            media = MediaIoBaseUpload(
+                io.BytesIO(data), mimetype=mime_type, resumable=True
+            )
+            name_esc = filename.replace("\\", "\\\\").replace("'", "\\'")
+            q = (f"name='{name_esc}' and '{folder_id}' in parents "
+                 f"and trashed=false")
+            res = self._list(q, fields="files(id)", page_size=1)
+            if res.get("files"):
+                file_id = res["files"][0]["id"]
+                self._update(file_id, media)
+                logger.info(f"♻️  Updated: {filename}")
+                return file_id
+            file = self._create({"name": filename, "parents": [folder_id]}, media=media)
+            logger.info(f"✅ Created: {filename}")
+            return file.get("id")
+        except Exception as e:
+            logger.error(f"update_or_create failed ({filename}): {e}")
+            return None
+
+    def walk(self, folder_id: str, _path: str = "") -> list[dict]:
+        """Recursively list all files under folder_id. Returns a flat list of
+        {path, name, id, mimeType, parent_path}."""
+        try:
+            res = self._list(
+                f"'{folder_id}' in parents and trashed=false",
+                fields="files(id, name, mimeType)", page_size=200,
+            )
+        except Exception as e:
+            logger.error(f"walk failed at {folder_id}: {e}")
+            return []
+        items = []
+        for f in res.get("files", []):
+            here = f"{_path}/{f['name']}" if _path else f["name"]
+            if f["mimeType"] == FOLDER_MIME:
+                items.extend(self.walk(f["id"], here))
+            else:
+                items.append({
+                    "path": here, "name": f["name"], "id": f["id"],
+                    "mime": f["mimeType"], "parent_path": _path,
+                })
+        return items
 
     def list_files_by_prefix(self, name_prefix: str) -> list:
         prefix_esc = name_prefix.replace("\\", "\\\\").replace("'", "\\'")

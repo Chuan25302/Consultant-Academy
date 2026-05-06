@@ -31,6 +31,7 @@ from src.utils.calendar_parser import CalendarParser
 from src.utils.cli import parse_date, validate_startup
 from src.utils.cost_tracker import CostTracker
 from src.utils.docx_writer import markdown_to_docx_bytes
+from src.utils.index_builder import IndexBuilder
 from src.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
@@ -109,22 +110,30 @@ def main(date: str = None, dry_run: bool = False,
 
     date_str   = topic["date"].strftime("%Y-%m-%d")
     month_path = topic["date"].strftime("%Y/%B").lower()
+    level      = topic.get("level", 1)
+    cluster    = topic.get("cluster", "General")
+    pillar_dir = PILLAR_FOLDER.get(topic["pillar"], "General")
+
     email_filename = f"[Email] {date_str} {topic['topic']}.html"
-    docx_filename  = f"{date_str} — {topic['pillar']} — {topic['topic'][:50]}.docx"
+    docx_filename  = f"[L{level}] {date_str} {topic['topic'][:50]}.docx"
 
     if dry_run:
         logger.info(f"🧪 [dry-run] would upload: {email_filename}")
-        logger.info(f"🧪 [dry-run] would upload: {docx_filename}")
+        logger.info(f"🧪 [dry-run] would upload: {pillar_dir}/{cluster}/{docx_filename}")
+        logger.info("🧪 [dry-run] would rebuild Knowledge Base master index")
     else:
         email_folder = drive.get_or_create_folder(
             f"Email Archives/{month_path}", s.FOLDER_EMAIL_ARCHIVES)
         drive.upload(email_filename, email_html, email_folder, "text/html")
 
-        pillar_folder_name = PILLAR_FOLDER.get(topic["pillar"], "General")
         kb_folder = drive.get_or_create_folder(
-            pillar_folder_name, s.FOLDER_KNOWLEDGE_BASE)
+            f"{pillar_dir}/{cluster}", s.FOLDER_KNOWLEDGE_BASE)
         docx_bytes = markdown_to_docx_bytes(translated, title=topic["topic"])
         drive.upload(docx_filename, docx_bytes, kb_folder, DOCX_MIME)
+
+        # Rebuild master index so new hires always have an up-to-date map
+        logger.info("📚 Rebuilding Knowledge Base master index...")
+        IndexBuilder(drive, s).rebuild()
 
     daily_cost = cost.daily_total()
     logger.info(f"💰 Daily cost: ${daily_cost:.4f}")

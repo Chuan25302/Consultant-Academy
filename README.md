@@ -11,12 +11,12 @@ Daily Thai-language content automation for the energy consulting team. Runs Mon�
 
 ## Pipeline
 ```
-Calendar → Research → Expert → Industry → Translator → Designer → Drive
+Calendar → Research → Expert → Industry → Translator → Designer → Drive → Index
                                               ↓
                               (RECAP pillar)  Recap Agent
 ```
 
-5 LLM agents (Research, Expert, Industry, Translator, Recap) + 1 local renderer (Designer). Research is cached locally for 7 days; expired entries are auto-pruned.
+5 LLM agents (Research, Expert, Industry, Translator, Recap) + 1 local renderer (Designer) + 1 local index builder. Research is cached locally for 7 days; expired entries are auto-pruned. Knowledge Base is organized by pillar → cluster → level with an auto-regenerated master index so new hires can follow a single file to catch up.
 
 ## Cost
 < $1/month for daily content, even with no cache hits. Real token usage logged via `response.usage_metadata`. See `docs/SETUP.md`.
@@ -43,7 +43,7 @@ Full setup in [`docs/SETUP.md`](docs/SETUP.md). Content schedule in [`docs/Conte
 ## Development
 ```bash
 pip install -r requirements-dev.txt
-pytest         # 53 tests
+pytest         # 74 tests
 ruff check .   # lint
 ```
 

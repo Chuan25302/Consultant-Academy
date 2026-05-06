@@ -59,3 +59,39 @@ def test_date_carries_through():
     d = _date("2024-05-06")
     t = CalendarParser(SAMPLE).get_topic(d)
     assert t["date"] == d
+
+
+def test_parses_cluster_and_level():
+    md = ("- **2024-05-06**: TECHNICAL | Chiller 101 | Hospitality | "
+          "chiller,COP | cluster=HVAC-Chillers | level=2")
+    t = CalendarParser(md).get_topic(_date("2024-05-06"))
+    assert t["cluster"] == "HVAC-Chillers"
+    assert t["level"] == 2
+
+
+def test_default_cluster_and_level_when_missing():
+    md = "- **2024-05-06**: TECHNICAL | Topic | Hospitality | k1"
+    t = CalendarParser(md).get_topic(_date("2024-05-06"))
+    assert t["cluster"] == "General"
+    assert t["level"] == 1
+
+
+def test_only_cluster_provided():
+    md = "- **2024-05-06**: TECHNICAL | Topic | X | k | cluster=Steam"
+    t = CalendarParser(md).get_topic(_date("2024-05-06"))
+    assert t["cluster"] == "Steam"
+    assert t["level"] == 1
+
+
+def test_invalid_level_falls_back_to_one():
+    md = "- **2024-05-06**: TECHNICAL | Topic | X | k | level=advanced"
+    t = CalendarParser(md).get_topic(_date("2024-05-06"))
+    assert t["level"] == 1
+
+
+def test_kv_order_does_not_matter():
+    md = ("- **2024-05-06**: TECHNICAL | Topic | X | k | "
+          "level=3 | cluster=Motors")
+    t = CalendarParser(md).get_topic(_date("2024-05-06"))
+    assert t["cluster"] == "Motors"
+    assert t["level"] == 3

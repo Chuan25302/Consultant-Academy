@@ -1,7 +1,12 @@
 """
 Parses Content-Calendar-YYYY.md from Google Drive.
+
 Line format:
-- **2024-05-06**: TECHNICAL | Chiller Efficiency 101 | Hospitality | chiller,COP,fouling
+    - **YYYY-MM-DD**: PILLAR | หัวข้อ | Industry | k1,k2 [| cluster=X | level=N]
+
+Optional kv fields after the standard 4:
+    cluster=...   subfolder under the pillar (e.g. HVAC-Chillers, Motors-VFD)
+    level=1|2|3   1=basics, 2=intermediate, 3=advanced (default 1)
 """
 import logging
 import re
@@ -26,12 +31,28 @@ class CalendarParser:
             parts = [p.strip() for p in match.group(1).split("|")]
             if len(parts) < 2:
                 continue
+
+            standard = parts[:4]
+            extras = parts[4:]
+            kv = {}
+            for ex in extras:
+                if "=" in ex:
+                    k, v = ex.split("=", 1)
+                    kv[k.strip().lower()] = v.strip()
+
+            try:
+                level = int(kv.get("level", "1"))
+            except ValueError:
+                level = 1
+
             return {
-                "pillar": parts[0].upper(),
-                "topic": parts[1] if len(parts) > 1 else "ทั่วไป",
-                "industry": parts[2] if len(parts) > 2 else "General",
-                "keywords": [k.strip() for k in parts[3].split(",")] if len(parts) > 3 else [],
-                "date": date
+                "pillar": standard[0].upper(),
+                "topic": standard[1] if len(standard) > 1 else "ทั่วไป",
+                "industry": standard[2] if len(standard) > 2 else "General",
+                "keywords": [k.strip() for k in standard[3].split(",")] if len(standard) > 3 else [],
+                "cluster": kv.get("cluster", "General"),
+                "level": level,
+                "date": date,
             }
         logger.warning(f"No topic found for {date_key}")
         return None

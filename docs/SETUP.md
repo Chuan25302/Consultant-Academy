@@ -135,12 +135,51 @@ to `data/cost_log.jsonl` — uploaded as a workflow artifact every run.
 Edit the calendar file in Drive (and optionally `docs/Content-Calendar-2024.md` to keep them in sync). Format:
 
 ```
-- **YYYY-MM-DD**: PILLAR | หัวข้อ | Industry | keyword1,keyword2
+- **YYYY-MM-DD**: PILLAR | หัวข้อ | Industry | k1,k2 | cluster=X | level=N
 ```
 
-Pillars: `TECHNICAL` | `INDUSTRY` | `FRAMEWORK` | `SOFTSKILL` | `RECAP`
+| Field | Required | Notes |
+|---|---|---|
+| `PILLAR` | yes | `TECHNICAL` \| `INDUSTRY` \| `FRAMEWORK` \| `SOFTSKILL` \| `RECAP` |
+| Topic | yes | Used as the email/article title |
+| Industry | yes | Used by Industry agent (`General` skips it) |
+| Keywords | yes | Used by Research agent |
+| `cluster=X` | no | Subfolder under the pillar in Knowledge Base (e.g. `HVAC-Chillers`). Defaults to `General` |
+| `level=N` | no | 1=basics, 2=intermediate, 3=advanced. Defaults to `1` |
 
-`RECAP` rows skip the full pipeline and run the weekly recap agent instead (which summarizes the week's `[Email] ...` files).
+`RECAP` rows skip the full pipeline and run the weekly recap agent instead.
+
+## 9. Knowledge Base structure (for new hires)
+
+The pipeline organizes the Knowledge Base hierarchy by pillar → cluster → level so a new hire can read through it sequentially without prior knowledge of where things are:
+
+```
+Knowledge Base/
+├── 00-Master-Index.md  ← auto-generated every day, single starting point
+├── 01-Technical-Depth/
+│   ├── HVAC-Chillers/
+│   │   ├── [L1] 2024-05-06 Chiller Efficiency 101.docx
+│   │   └── [L2] 2024-09-12 Cooling Tower Optimization.docx
+│   ├── Motors-VFD/
+│   ├── Steam/
+│   └── Compressed-Air/
+├── 02-Industry-Business-Logic/
+│   ├── Hospitality/
+│   ├── Steel/
+│   └── Pharma/
+├── 03-Diagnostic-Frameworks/
+│   ├── Energy-Audit/
+│   ├── Measurement-Verification/
+│   └── Financial-Analysis/
+└── 04-Soft-Skills-Positioning/
+    ├── Discovery/
+    ├── Objection-Handling/
+    └── Proposal-Writing/
+```
+
+`00-Master-Index.md` lists every article grouped by pillar → cluster, and includes a "🆕 สำหรับคนใหม่ — เริ่มอ่านที่นี่" section with all Level 1 articles in chronological order. New hires open this single file and follow the suggested reading order.
+
+Filename convention: `[L<level>] YYYY-MM-DD <topic>.docx` so Drive's alphabetical sort puts L1 articles first within each cluster.
 
 ---
 
