@@ -131,6 +131,22 @@ class DriveAPI:
         logger.debug(f"📁 Created folder: {name}")
         return folder.get("id")
 
+    def update_file_content(self, file_id: str, content: str | bytes,
+                            mime_type: str = "text/markdown") -> str | None:
+        """Replace contents of an existing file by its Drive ID. Used by
+        the calendar planner to extend the calendar in place."""
+        try:
+            data = content.encode("utf-8") if isinstance(content, str) else content
+            media = MediaIoBaseUpload(
+                io.BytesIO(data), mimetype=mime_type, resumable=True
+            )
+            result = self._update(file_id, media)
+            logger.info(f"♻️  Updated file content: {file_id}")
+            return result.get("id")
+        except Exception as e:
+            logger.error(f"update_file_content failed ({file_id}): {e}")
+            return None
+
     def update_or_create(self, filename: str, content: str | bytes,
                          folder_id: str, mime_type: str = "text/markdown") -> str | None:
         """Upload a file, replacing any existing one with the same name in the

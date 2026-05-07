@@ -13,11 +13,13 @@ Daily Thai-language content automation for the energy consulting team. Runs Mon�
 ```
 Calendar → Research → Expert(by-pillar) → Industry → FactChecker → Translator → Editor → Connector → Designer → Drive → Index
                           ↓                   ↓            ↓                       ↓         ↓                              ↓
-                  4 templates per pillar  6 sectors  no-halluc gate          regen if      "อ่านเพิ่ม"                  master index
+                  6 templates per pillar  10 sectors  no-halluc gate         regen if      "อ่านเพิ่ม"                  master index
                                                                               quality fails  links
+
+After successful upload: Planner checks if calendar < 14 days ahead → if yes, auto-extends 4 weeks
 ```
 
-7 LLM agents (Research, Expert, Industry, FactChecker, Translator, Editor, Recap) + 2 local helpers (Designer, IndexBuilder/Connector). Research is cached locally for 7 days; expired entries auto-pruned. Knowledge Base is organized by pillar → cluster → level with an auto-regenerated master index so new hires can follow a single file to catch up.
+8 LLM agents (Research, Expert, Industry, FactChecker, Translator, Editor, Planner, Recap) + 2 local helpers (Designer, IndexBuilder/Connector). Research is cached locally for 7 days; expired entries auto-pruned. Knowledge Base is organized by pillar → cluster → level with an auto-regenerated master index so new hires can follow a single file to catch up. **Planner agent** auto-extends the calendar when it runs low — calendar never blocks production runs.
 
 ### Anti-hallucination guardrails
 
@@ -50,6 +52,7 @@ Food & Pharma + Cold Storage | General Manufacturing | Petrochem & Chemical | He
 python src/main.py                    # today's topic
 python src/main.py --date 2024-05-06  # backfill specific day
 python src/main.py --recap-only       # force weekly recap now
+python src/main.py --plan-next        # extend calendar by 4 weeks (Planner)
 python src/main.py --dry-run          # skip Drive uploads
 python src/main.py --skip-validation  # bypass startup pre-flight check
 ```
@@ -67,7 +70,7 @@ Full setup in [`docs/SETUP.md`](docs/SETUP.md). Drive folder structure & sharing
 ## Development
 ```bash
 pip install -r requirements-dev.txt
-pytest         # 128 tests
+pytest         # 145 tests
 ruff check .   # lint
 ```
 
@@ -81,9 +84,9 @@ consultant-academy/
 │   └── tests.yml               # ruff + pytest on push/PR
 ├── src/
 │   ├── main.py                 # orchestrator + CLI
-│   ├── agents/                 # 7 LLM agents (Research, Expert, Industry,
-│   │                           #   FactChecker, Translator, Editor, Recap)
-│   │                           #   + local Designer
+│   ├── agents/                 # 8 LLM agents (Research, Expert, Industry,
+│   │                           #   FactChecker, Translator, Editor,
+│   │                           #   Planner, Recap) + local Designer
 │   ├── integrations/           # Gemini, Drive (SA auth), 7d cache
 │   ├── utils/                  # logger, cost, calendar parser, retry,
 │   │                           #   docx_writer, cli, skill_loader, index_builder

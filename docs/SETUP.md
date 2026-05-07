@@ -154,6 +154,12 @@ Edit the calendar file in Drive (and optionally `docs/Content-Calendar-2024.md` 
 
 `RECAP` rows skip the full pipeline and run the weekly recap agent instead.
 
+### Auto-extending the calendar
+
+After every successful run, the **Planner agent** checks if the calendar has fewer than 14 days of entries ahead. If so, it generates the next 4 weeks (Mon–Fri content + Sat RECAP) using Pro 2.5 and writes them back to the calendar in Drive. Manual trigger: `python src/main.py --plan-next`.
+
+The planner avoids repeating recent topics, progresses through Levels 1→2→3 within each cluster, rotates through the 10 industry families (incl. niche: pulp/paper, rubber/glove, ceramics, data center, battery), and uses a variety of named SOFTSKILL frameworks. Generated entries can be reviewed in Drive and edited if needed — the system reads the latest version on every run.
+
 ## 9. Knowledge Base structure (for new hires)
 
 The pipeline organizes the Knowledge Base hierarchy by pillar → cluster → level so a new hire can read through it sequentially without prior knowledge of where things are:

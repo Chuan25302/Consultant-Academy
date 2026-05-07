@@ -7,6 +7,7 @@ CLI:
   python src/main.py                       # today's topic
   python src/main.py --date 2024-05-06     # backfill specific day
   python src/main.py --recap-only          # force weekly recap now
+  python src/main.py --plan-next           # extend calendar by 4 weeks now
   python src/main.py --dry-run             # skip Drive uploads
   python src/main.py --skip-validation     # bypass startup pre-flight check
 """
@@ -22,6 +23,7 @@ from src.agents.editor_agent import EditorAgent
 from src.agents.expert_agent import ExpertAgent
 from src.agents.factchecker_agent import FactCheckerAgent
 from src.agents.industry_agent import IndustryAgent
+from src.agents.planner_agent import CalendarPlannerAgent
 from src.agents.recap_agent import RecapAgent
 from src.agents.research_agent import ResearchAgent
 from src.agents.translator_agent import TranslatorAgent
@@ -51,7 +53,8 @@ DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.docu
 
 
 def main(date: str = None, dry_run: bool = False,
-         recap_only: bool = False, skip_validation: bool = False):
+         recap_only: bool = False, plan_next: bool = False,
+         skip_validation: bool = False):
     target = parse_date(date) if date else now_bangkok()
     logger.info("=" * 60)
     logger.info("🚀 PTT NGR ESP — Consultant Academy")
@@ -71,6 +74,18 @@ def main(date: str = None, dry_run: bool = False,
     if not skip_validation:
         logger.info("🔎 Validating Drive access...")
         validate_startup(s, drive)
+
+    if plan_next:
+        logger.info("📅 PLAN-NEXT mode — extending calendar")
+        raw = drive.download_file(s.CALENDAR_FILE_ID)
+        if not raw:
+            logger.error("❌ Calendar file empty or unreadable")
+            return {"status": "error", "reason": "calendar_unreadable"}
+        ok = CalendarPlannerAgent(gemini, drive, s).force_extend(
+            raw, dry_run=dry_run)
+        return {"status": "success" if ok else "error",
+                "mode": "plan_only", "extended": ok,
+                "cost_usd": cost.daily_total()}
 
     if recap_only:
         RecapAgent(gemini, drive, s).generate_and_upload(today=target, dry_run=dry_run)
@@ -158,6 +173,14 @@ def main(date: str = None, dry_run: bool = False,
         index._articles_cache = None  # invalidate so the new article shows up
         index.rebuild()
 
+        # Auto-extend calendar if running low (non-blocking — failures are
+        # logged but don't fail today's run since today's content already
+        # uploaded successfully)
+        try:
+            CalendarPlannerAgent(gemini, drive, s).maybe_extend(raw, target)
+        except Exception as e:
+            logger.error(f"Planner failed (non-blocking): {e}")
+
     daily_cost = cost.daily_total()
     logger.info(f"💰 Daily cost: ${daily_cost:.4f}")
     logger.info("✅ DONE")
@@ -173,6 +196,8 @@ if __name__ == "__main__":
                         help="Run pipeline but skip Drive uploads")
     parser.add_argument("--recap-only", action="store_true",
                         help="Skip the daily pipeline and just run the weekly recap")
+    parser.add_argument("--plan-next", action="store_true",
+                        help="Skip pipeline; extend calendar by 4 weeks (Pro 2.5)")
     parser.add_argument("--skip-validation", action="store_true",
                         help="Bypass Drive access pre-flight check")
     args = parser.parse_args()
@@ -181,6 +206,7 @@ if __name__ == "__main__":
         date=args.date,
         dry_run=args.dry_run,
         recap_only=args.recap_only,
+        plan_next=args.plan_next,
         skip_validation=args.skip_validation,
     )
     print(json.dumps(result, indent=2, default=str, ensure_ascii=False))
