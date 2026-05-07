@@ -95,6 +95,24 @@ def test_real_skills_dir_loads_chiller_card():
     assert (real_dir / "equipment" / "chiller.md").exists()
     assert (real_dir / "industries" / "automotive-oem.md").exists()
     assert (real_dir / "frameworks" / "bant.md").exists()
+    # Stage 3 additions
+    assert (real_dir / "equipment" / "boiler.md").exists()
+    assert (real_dir / "equipment" / "solar-pv.md").exists()
+    assert (real_dir / "standards" / "iso-50001.md").exists()
+    assert (real_dir / "standards" / "ipmvp.md").exists()
+
+
+def test_real_topic_pulls_iso_50001_card():
+    """Compliance topic about ISO 50001 should match the standards card."""
+    topic = {
+        "topic": "ISO 50001 Implementation Roadmap",
+        "industry": "General",
+        "cluster": "ISO-50001",
+        "keywords": ["ISO 50001", "EnMS"],
+    }
+    out = load_skills(topic)
+    assert "ISO 50001" in out
+    assert "EnMS" in out or "PDCA" in out  # from the card
 
 
 def test_real_topic_pulls_relevant_real_card():

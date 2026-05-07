@@ -70,7 +70,7 @@ Full setup in [`docs/SETUP.md`](docs/SETUP.md). Drive folder structure & sharing
 ## Development
 ```bash
 pip install -r requirements-dev.txt
-pytest         # 145 tests
+pytest         # 146 tests
 ruff check .   # lint
 ```
 
@@ -91,11 +91,14 @@ consultant-academy/
 │   ├── utils/                  # logger, cost, calendar parser, retry,
 │   │                           #   docx_writer, cli, skill_loader, index_builder
 │   ├── skills/                 # ← per-domain reference cards (markdown)
-│   │   ├── equipment/          #   chiller, motor, pump, compressor, ...
-│   │   ├── industries/         #   automotive-oem, electronics-hdd, hospitals, spp, ...
-│   │   └── frameworks/         #   bant, meddic, ...
+│   │   ├── equipment/          #   chiller, motor, pump, compressor,
+│   │   │                       #   boiler, cooling-tower, heat-pump, bess, solar-pv
+│   │   ├── industries/         #   automotive-oem, electronics-hdd, hospitals, spp,
+│   │   │                       #   data-center, pulp-paper, rubber-glove, ceramics
+│   │   ├── standards/          #   iso-50001, ipmvp
+│   │   └── frameworks/         #   bant, meddic, spin
 │   └── config/settings.py
-├── tests/                      # 128 pytest tests
+├── tests/                      # 146 pytest tests
 ├── data/                       # cost log + research cache (auto-created, gitignored)
 ├── docs/                       # SETUP + Content Calendar (28 weeks)
 ├── pyproject.toml              # ruff + pytest config
