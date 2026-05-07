@@ -18,6 +18,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+from dotenv import load_dotenv
+load_dotenv()
+
 from src.agents.designer_agent import DesignerAgent
 from src.agents.editor_agent import EditorAgent
 from src.agents.expert_agent import ExpertAgent

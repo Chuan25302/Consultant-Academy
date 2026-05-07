@@ -3,6 +3,10 @@
 credentials.json
 token.json
 *.pem
+service-account.json
+google-key.json
+*-service-account.json
+*-key.json
 
 # Python
 __pycache__/

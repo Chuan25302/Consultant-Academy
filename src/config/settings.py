@@ -9,6 +9,17 @@ class Settings:
         "GOOGLE_SERVICE_ACCOUNT_FILE", "service-account.json"
     )
 
+    # Vertex AI — ถ้าตั้งค่า VERTEX_AI_PROJECT จะใช้ Vertex แทน API Key
+    VERTEX_AI_PROJECT: str = os.getenv("VERTEX_AI_PROJECT", "")
+    VERTEX_AI_LOCATION: str = os.getenv("VERTEX_AI_LOCATION", "us-central1")
+    VERTEX_AI_SERVICE_ACCOUNT_FILE: str = os.getenv(
+        "VERTEX_AI_SERVICE_ACCOUNT_FILE", "vertex-ai-service-key.json"
+    )
+
+    @property
+    def use_vertex(self) -> bool:
+        return bool(self.VERTEX_AI_PROJECT)
+
     CALENDAR_FILE_ID: str = os.getenv("CALENDAR_FILE_ID", "")
     FOLDER_EMAIL_ARCHIVES: str = os.getenv("FOLDER_EMAIL_ARCHIVES", "")
     FOLDER_KNOWLEDGE_BASE: str = os.getenv("FOLDER_KNOWLEDGE_BASE", "")

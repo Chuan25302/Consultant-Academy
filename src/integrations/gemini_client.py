@@ -12,20 +12,38 @@ import re
 
 from google import genai
 from google.genai import types
+from google.oauth2 import service_account
 
 from src.config.settings import Settings
 from src.utils.retry import with_retries
 
 logger = logging.getLogger(__name__)
 
+_VERTEX_SCOPES = ["https://www.googleapis.com/auth/cloud-platform"]
+
 
 class GeminiClient:
     def __init__(self, settings: Settings, cost_tracker=None):
         self.settings = settings
-        self.client = genai.Client(api_key=settings.GOOGLE_API_KEY)
         self.max_tokens = settings.MAX_TOKENS_PER_AGENT
         self.cost_tracker = cost_tracker
-        logger.info(f"✅ Gemini initialized (default: {settings.GEMINI_MODEL})")
+
+        if settings.use_vertex:
+            creds = service_account.Credentials.from_service_account_file(
+                settings.VERTEX_AI_SERVICE_ACCOUNT_FILE,
+                scopes=_VERTEX_SCOPES,
+            )
+            self.client = genai.Client(
+                vertexai=True,
+                project=settings.VERTEX_AI_PROJECT,
+                location=settings.VERTEX_AI_LOCATION,
+                credentials=creds,
+            )
+            logger.info(f"✅ Gemini via Vertex AI (project={settings.VERTEX_AI_PROJECT}, "
+                        f"location={settings.VERTEX_AI_LOCATION})")
+        else:
+            self.client = genai.Client(api_key=settings.GOOGLE_API_KEY)
+            logger.info(f"✅ Gemini via API Key (default: {settings.GEMINI_MODEL})")
 
     @with_retries
     def _call_model(self, prompt: str, max_tokens: int, model: str):

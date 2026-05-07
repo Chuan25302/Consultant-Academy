@@ -165,10 +165,13 @@ class CalendarPlannerAgent:
     def generate(self, calendar_text: str,
                  num_weeks: int = DEFAULT_NEW_WEEKS) -> str | None:
         last_date = self.find_last_date(calendar_text)
-        if not last_date:
-            logger.error("No dates found in calendar — cannot extend")
-            return None
-        start = self._next_monday(last_date)
+        today = now_bangkok()
+        # If calendar is empty or all dates are in the past → start from next Monday
+        if not last_date or last_date.date() < today.date():
+            start = self._next_monday(today)
+            logger.info(f"📅 Calendar last date is in the past ({last_date}) — starting from {start.date()}")
+        else:
+            start = self._next_monday(last_date)
         history = self.extract_history(calendar_text)
         total_lines = num_weeks * 6  # Mon-Sat per week
 

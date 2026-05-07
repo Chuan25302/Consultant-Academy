@@ -136,6 +136,9 @@ class DriveAPI:
         """Replace contents of an existing file by its Drive ID. Used by
         the calendar planner to extend the calendar in place."""
         try:
+            meta = self._get_meta(file_id)
+            if meta.get("mimeType") == GOOGLE_DOC_MIME:
+                mime_type = "text/plain"
             data = content.encode("utf-8") if isinstance(content, str) else content
             media = MediaIoBaseUpload(
                 io.BytesIO(data), mimetype=mime_type, resumable=True
