@@ -62,7 +62,7 @@ python src/main.py --skip-validation  # bypass startup pre-flight check
 5. `python src/main.py --dry-run` — verify pipeline locally
 6. Add GitHub secrets, push — Actions takes over
 
-Full setup in [`docs/SETUP.md`](docs/SETUP.md). Content schedule in [`docs/Content-Calendar-2024.md`](docs/Content-Calendar-2024.md).
+Full setup in [`docs/SETUP.md`](docs/SETUP.md). Drive folder structure & sharing checklist in [`docs/Drive-Setup.md`](docs/Drive-Setup.md). Content schedule in [`docs/Content-Calendar-2024.md`](docs/Content-Calendar-2024.md).
 
 ## Development
 ```bash

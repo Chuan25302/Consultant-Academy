@@ -40,6 +40,8 @@ We use a **service account** (not OAuth Desktop) so the workflow runs headless o
 
 ## 3. Share Drive folders with the service account
 
+> 📋 **For a step-by-step Drive setup checklist with diagrams, see [Drive-Setup.md](Drive-Setup.md)**
+
 In Google Drive, for each of the 3 root folders **and** the calendar file:
 
 ```
