@@ -7,6 +7,7 @@ import json
 import logging
 
 from src.integrations.gemini_client import GeminiClient
+from src.utils.skill_loader import load_skills
 
 logger = logging.getLogger(__name__)
 
@@ -130,6 +131,18 @@ SOFTSKILL_PROMPT = """
 **ต้องเลือก 1 framework ที่มีจริง** เพื่อสอน — เช่น
 BANT (Budget/Authority/Need/Timeline) | MEDDIC | SPIN selling | Sandler | Challenger Sale |
 5 Whys | 5W1H | AIDA | Decision Matrix | RACI Stakeholder Map | TCO/NPV financial frameworks
+
+**Thai industrial context** — เพิ่ม role + cultural notes ตามที่เกี่ยวข้อง:
+- **PRE** (Person Responsible for Energy) — บทบาทตาม ม.32 พ.ร.บ. 2535
+  ของโรงงาน/อาคารควบคุม. รายงานต่อ DEDE ต้องผ่าน PRE
+- **ESG Officer** — role ใหม่ใน SET-listed company; ดู Scope 1/2/3,
+  TCFD reporting, supplier code (Scope 3)
+- **Plant Engineer / Maintenance Manager** — รายวัน, มี budget OPEX แต่ไม่ใหญ่
+- **TOR** (Term of Reference) — ราชการ + บางเอกชน ใช้รูปแบบนี้;
+  MNC ใช้ RFP/RFQ
+- **BOI / EEC** — tax incentive structuring, มีผลกับ project payback
+- Thai business culture: hierarchy, face-saving, indirect communication —
+  คำถามตรงเรื่อง budget/authority อาจเสียมารยาท ใช้ soft phrasing
 
 เขียน Markdown ภาษาไทย ตามโครงสร้าง:
 
@@ -307,7 +320,10 @@ class ExpertAgent:
         self.gemini = gemini
 
     def draft(self, topic: str, pillar: str, research: dict,
-              industry: str = "ทั่วไป") -> str:
+              industry: str = "ทั่วไป",
+              topic_meta: dict | None = None) -> str:
+        """`topic_meta` is the parsed calendar entry; if provided, relevant
+        skill cards are injected into the prompt as additional context."""
         logger.info(f"🧠 Expert ({pillar}): {topic}")
         template = PROMPTS.get(pillar, TECHNICAL_PROMPT)
         prompt = template.format(
@@ -318,6 +334,8 @@ class ExpertAgent:
             equipment=EQUIPMENT_PRIMER,
             anti_halluc=ANTI_HALLUC,
         )
+        if topic_meta:
+            prompt += load_skills(topic_meta)
         return self.gemini.generate(
             prompt, max_tokens=2000, agent_tag="expert"
         )

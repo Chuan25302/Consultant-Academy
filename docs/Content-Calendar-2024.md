@@ -241,3 +241,39 @@ Heavy (Steel/Cement/Glass) | **Automotive (Full + EV)** | **Electronics (HDD/Sem
 - **2024-10-17**: INDUSTRY | โรงไฟฟ้าชีวมวล/ชีวภาพ + VSPP Solar | Power | biomass,biogas,VSPP,solar | cluster=Power-Plants | level=2
 - **2024-10-18**: SUSTAINABILITY | T-VER Biomass Power Project: ลงทะเบียน + ขายเครดิต | Power | T-VER,biomass,credit | cluster=T-VER | level=3
 - **2024-10-19**: RECAP | สรุปสัปดาห์ที่ 24 | General | recap
+
+## October–November 2024 — Week 25–26: Cross-cutting (Tariff + Solar + BESS) ⭐ NEW
+
+### Week 25 — TOU Tariff + Solar PPA
+- **2024-10-21**: TECHNICAL | TOU/TOD Tariff Structure: Peak vs Off-peak ใน MEA/PEA/EGAT | General | TOU,TOD,tariff,peak | cluster=Electricity-Tariff | level=1
+- **2024-10-22**: INDUSTRY | Load Shifting: ย้าย production ไป off-peak ได้ที่ไหน | General | load shift,demand mgmt | cluster=Demand-Management | level=2
+- **2024-10-23**: FRAMEWORK | Power Quality: Harmonics + PF Correction (IEEE 519) | General | harmonics,PF,IEEE 519 | cluster=Power-Quality | level=2
+- **2024-10-24**: SOFTSKILL | คุยกับ PRE: ม.32 พ.ร.บ. 2535 + การรายงาน DEDE | General | PRE,DEDE,ม.32 | cluster=Thai-Industrial-Roles | level=2
+- **2024-10-25**: SUSTAINABILITY | Solar Direct PPA vs Self-consumption: เลือกแบบไหน | General | solar,PPA,IPS | cluster=Solar-PPA | level=2
+- **2024-10-26**: RECAP | สรุปสัปดาห์ที่ 25 | General | recap
+
+### Week 26 — BESS + Heat Pump + Waste Heat Recovery
+- **2024-10-28**: TECHNICAL | BESS Economics: Peak Shaving + Demand Charge Reduction | General | BESS,peak shaving | cluster=Battery-Storage | level=2
+- **2024-10-29**: INDUSTRY | Heat Pump Industrial: เปลี่ยน gas boiler เป็น HP 4 COP | General | heat pump,electrification | cluster=Heat-Pumps | level=2
+- **2024-10-30**: TECHNICAL | Waste Heat Recovery: ORC + Heat Exchanger Sizing | General | WHR,ORC,heat exchanger | cluster=Waste-Heat-Recovery | level=2
+- **2024-10-31**: SOFTSKILL | คุยกับ ESG Officer: Scope 1/2/3 + TCFD | General | ESG,scope,TCFD | cluster=Thai-Industrial-Roles | level=2
+- **2024-11-01**: SUSTAINABILITY | Internal Carbon Pricing: ตั้งราคา carbon ภายในบริษัท | General | ICP,carbon pricing | cluster=Carbon-Strategy | level=3
+- **2024-11-02**: RECAP | สรุปสัปดาห์ที่ 26 | General | recap
+
+## November 2024 — Week 27–28: Cross-cutting (IIoT + Behavioral + Thai Procurement) ⭐ NEW
+
+### Week 27 — IIoT + Behavioral + LED
+- **2024-11-04**: TECHNICAL | IIoT + Energy MIS: Real-time Monitoring สำหรับ ISO 50001 | General | IIoT,energy MIS,monitoring | cluster=Digital-Energy | level=2
+- **2024-11-05**: INDUSTRY | Behavioral Savings Program: 5–15% ไม่ต้อง capex | General | behavioral,operations | cluster=Operational-Excellence | level=2
+- **2024-11-06**: TECHNICAL | LED Retrofit: Tunnel Lighting + High Bay + Office | General | LED,retrofit,lighting | cluster=Lighting | level=1
+- **2024-11-07**: SOFTSKILL | TOR ราชการ vs RFP เอกชน vs MNC: เขียนข้อเสนอแบบไหน | General | TOR,RFP,procurement | cluster=Procurement | level=2
+- **2024-11-08**: SUSTAINABILITY | LCA Basics: Cradle-to-Gate vs Cradle-to-Grave | General | LCA,cradle-to-grave | cluster=LCA | level=2
+- **2024-11-09**: RECAP | สรุปสัปดาห์ที่ 27 | General | recap
+
+### Week 28 — ESCO + BOI/EEC + Thai Soft Skill
+- **2024-11-11**: TECHNICAL | ESCO Contract Models: Shared Savings vs Guaranteed Savings | General | ESCO,EPC,contract | cluster=ESCO | level=2
+- **2024-11-12**: INDUSTRY | BOI / EEC: Energy Project Tax Incentive Structuring | General | BOI,EEC,tax incentive | cluster=Thai-Incentives | level=2
+- **2024-11-13**: COMPLIANCE | กรอ.4 + DEDE: รายงานพลังงานประจำปี — checklist | General | กรอ.4,DEDE,annual report | cluster=Thai-Reporting | level=2
+- **2024-11-14**: SOFTSKILL | Thai Business Culture: Hierarchy, Face, Indirect | General | Thai culture,negotiation | cluster=Cultural-Skills | level=2
+- **2024-11-15**: SUSTAINABILITY | Net Zero Roadmap: 2050 vs 2065 — Thai factory step-by-step | General | net zero,roadmap,Thai | cluster=Net-Zero | level=3
+- **2024-11-16**: RECAP | สรุปสัปดาห์ที่ 28 | General | recap

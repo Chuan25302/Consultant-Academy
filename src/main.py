@@ -101,7 +101,8 @@ def main(date: str = None, dry_run: bool = False,
         topic["topic"], topic.get("industry"), topic.get("keywords"))
     expert = ExpertAgent(gemini).draft(
         topic["topic"], topic["pillar"], research,
-        industry=topic.get("industry", "ทั่วไป"))
+        industry=topic.get("industry", "ทั่วไป"),
+        topic_meta=topic)
 
     industry_ctx = None
     if topic.get("industry") and topic["industry"] not in ["General", "ทั่วไป"]:

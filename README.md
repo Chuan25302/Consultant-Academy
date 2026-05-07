@@ -25,6 +25,7 @@ Calendar → Research → Expert(by-pillar) → Industry → FactChecker → Tra
 - **FactChecker** (Pro 2.5 by default) runs heuristic regex checks for company names, ungrounded percentages, person names. If any flag triggers, sends content + research data to Pro to soften unverifiable claims.
 - **Editor** does a final regex spot-check for leftover company names and structural quality (Consultant Move, glossary, ≥3 numbers with units, length ≤600 words).
 - **Pillar-aware Expert prompts** (6 templates): TECHNICAL (equipment + ROI), INDUSTRY (sector profile), FRAMEWORK (named methodology), SOFTSKILL (**must use** a named framework: BANT/MEDDIC/SPIN/Sandler/Challenger/RACI/...), COMPLIANCE (real standards: พ.ร.บ. 2535, ม.32 PRE, กรอ.4, BEC, ISO 50001/50002/14001/14064/14067/45001, GMP/HACCP/BRCGS/FSSC, มอก. (TIS 2780/2854/866/3196), IATF 16949, IPC, ASME, ASHRAE 90.1/62.1/188, IPMVP, LEED/TREES), **SUSTAINABILITY** (TGO, T-VER, CBAM, SBTi, RE100, I-REC, Net Zero 2065, ISO 14064/14067, Scope 1/2/3).
+- **Skill cards** (`src/skills/`): per-equipment / per-industry / per-framework reference markdown files. The Expert agent loader scores each card by keyword overlap with the topic's `keywords`, `cluster`, `industry`, and `topic`, then injects the top 3 matches as additional context. Drop a new `.md` file in `src/skills/equipment/` (or `industries/`, `frameworks/`) and it's available to the next run — no code changes needed.
 
 ### Industry coverage (10 families)
 
@@ -66,7 +67,7 @@ Full setup in [`docs/SETUP.md`](docs/SETUP.md). Content schedule in [`docs/Conte
 ## Development
 ```bash
 pip install -r requirements-dev.txt
-pytest         # 118 tests
+pytest         # 128 tests
 ruff check .   # lint
 ```
 
@@ -76,17 +77,24 @@ CI runs ruff + pytest on every push/PR via `.github/workflows/tests.yml`.
 ```
 consultant-academy/
 ├── .github/workflows/
-│   ├── daily-routine.yml       # Mon–Fri cron
+│   ├── daily-routine.yml       # Mon–Sat cron (Mon–Fri content, Sat recap)
 │   └── tests.yml               # ruff + pytest on push/PR
 ├── src/
 │   ├── main.py                 # orchestrator + CLI
-│   ├── agents/                 # 6 agents (5 LLM + Designer)
+│   ├── agents/                 # 7 LLM agents (Research, Expert, Industry,
+│   │                           #   FactChecker, Translator, Editor, Recap)
+│   │                           #   + local Designer
 │   ├── integrations/           # Gemini, Drive (SA auth), 7d cache
-│   ├── utils/                  # logger, cost, calendar parser, retry, docx_writer, cli
+│   ├── utils/                  # logger, cost, calendar parser, retry,
+│   │                           #   docx_writer, cli, skill_loader, index_builder
+│   ├── skills/                 # ← per-domain reference cards (markdown)
+│   │   ├── equipment/          #   chiller, motor, pump, compressor, ...
+│   │   ├── industries/         #   automotive-oem, electronics-hdd, hospitals, spp, ...
+│   │   └── frameworks/         #   bant, meddic, ...
 │   └── config/settings.py
-├── tests/                      # 53 pytest tests
+├── tests/                      # 128 pytest tests
 ├── data/                       # cost log + research cache (auto-created, gitignored)
-├── docs/                       # SETUP + Content Calendar
+├── docs/                       # SETUP + Content Calendar (28 weeks)
 ├── pyproject.toml              # ruff + pytest config
 ├── requirements.txt
 ├── requirements-dev.txt
