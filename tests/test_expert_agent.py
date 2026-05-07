@@ -7,14 +7,46 @@ from src.agents.expert_agent import (
     INDUSTRY_PROMPT,
     PROMPTS,
     SOFTSKILL_PROMPT,
+    SUSTAINABILITY_PROMPT,
     TECHNICAL_PROMPT,
     ExpertAgent,
 )
 
 
 def test_all_pillars_have_prompts():
-    expected = {"TECHNICAL", "INDUSTRY", "FRAMEWORK", "SOFTSKILL", "COMPLIANCE"}
+    expected = {"TECHNICAL", "INDUSTRY", "FRAMEWORK", "SOFTSKILL",
+                "COMPLIANCE", "SUSTAINABILITY"}
     assert expected.issubset(PROMPTS.keys())
+
+
+def test_sustainability_prompt_lists_thai_carbon_programs():
+    assert "TGO" in SUSTAINABILITY_PROMPT
+    assert "T-VER" in SUSTAINABILITY_PROMPT
+    assert "CBAM" in SUSTAINABILITY_PROMPT
+    assert "Net Zero" in SUSTAINABILITY_PROMPT or "net zero" in SUSTAINABILITY_PROMPT.lower()
+
+
+def test_sustainability_prompt_lists_iso_standards():
+    assert "ISO 14064" in SUSTAINABILITY_PROMPT
+    assert "ISO 14067" in SUSTAINABILITY_PROMPT
+    assert "GHG Protocol" in SUSTAINABILITY_PROMPT
+
+
+def test_sustainability_prompt_has_anti_hallucination():
+    # Carbon math is the easiest place to fabricate — must have guard
+    assert "ห้าม" in SUSTAINABILITY_PROMPT
+
+
+def test_compliance_prompt_lists_expanded_standards():
+    """Standards expansion: should mention key Thai + international additions."""
+    standards = [
+        "ISO 14064", "ISO 14067", "ISO 50002", "IPMVP",
+        "IATF 16949", "IPC", "ASME", "ASHRAE 90.1",
+        "WHO GMP", "BRCGS", "FSSC 22000",
+        "TIS 2780", "กรอ.4", "ม.32", "BEC",
+    ]
+    missing = [s for s in standards if s not in COMPLIANCE_PROMPT]
+    assert not missing, f"missing from COMPLIANCE_PROMPT: {missing}"
 
 
 def test_softskill_prompt_requires_named_framework():

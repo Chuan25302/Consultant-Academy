@@ -121,14 +121,15 @@ Schedule: Mon–Fri at 00:00 UTC (07:00 Bangkok). Manual trigger via **Actions �
 Real token counts (`prompt_token_count` + `candidates_token_count`) are written
 to `data/cost_log.jsonl` — uploaded as a workflow artifact every run.
 
-| Configuration | Mon–Thu | Fri (recap only) | Per month |
+| Configuration | Mon–Fri (each) | Sat (recap only) | Per month |
 |---|---|---|---|
-| All Flash 2.0 | ~$0.002 (~0.07 ฿) | ~$0.001 | ~$0.04 (~1.5 ฿) |
-| **Recommended**: Pro 2.5 on Expert + FactChecker + Editor, Flash 2.5 on Research/Industry/Translator, Flash 2.0 on Recap | ~$0.06 (~2 ฿) | ~$0.001 (~0.04 ฿) | ~$1.20 (~40 ฿) |
-| All Pro 2.5 | ~$0.15 | ~$0.01 | ~$3.30 |
+| All Flash 2.0 | ~$0.002 (~0.07 ฿) | ~$0.001 | ~$0.05 (~1.7 ฿) |
+| **Recommended**: Pro 2.5 on Expert + FactChecker + Editor + Sustainability, Flash 2.5 on Research/Industry/Translator, Flash 2.0 on Recap | ~$0.07 (~2.5 ฿) | ~$0.001 (~0.04 ฿) | ~$1.50 (~50 ฿) |
+| All Pro 2.5 | ~$0.18 | ~$0.01 | ~$4.00 |
 | GitHub Actions | free (public) / 2000 min free (private) | — | — |
 
-Recommended config keeps Mon–Thu inside the 2.5 บาท ceiling while running Pro 2.5 on the three quality-critical agents (Expert for core content, FactChecker for anti-hallucination, Editor for final QA). Friday's recap is intentionally cheap — just summarizes existing Mon–Thu emails.
+Schedule: Mon–Fri = full pipeline (5 content days), Sat = RECAP only.
+Recommended config keeps Mon–Fri inside the 3 บาท ceiling while running Pro 2.5 on the four quality-critical agents (Expert for core content, FactChecker for anti-hallucination, Editor for final QA, Sustainability for carbon math accuracy).
 
 ---
 
@@ -142,7 +143,7 @@ Edit the calendar file in Drive (and optionally `docs/Content-Calendar-2024.md` 
 
 | Field | Required | Notes |
 |---|---|---|
-| `PILLAR` | yes | `TECHNICAL` \| `INDUSTRY` \| `FRAMEWORK` \| `SOFTSKILL` \| `COMPLIANCE` \| `RECAP` |
+| `PILLAR` | yes | `TECHNICAL` \| `INDUSTRY` \| `FRAMEWORK` \| `SOFTSKILL` \| `COMPLIANCE` \| `SUSTAINABILITY` \| `RECAP` |
 | Topic | yes | Used as the email/article title |
 | Industry | yes | Used by Industry agent (`General` skips it) |
 | Keywords | yes | Used by Research agent |

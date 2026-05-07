@@ -25,6 +25,7 @@ PILLAR_LABELS = {
     "03-Diagnostic-Frameworks":   "FRAMEWORK — กรอบการวิเคราะห์",
     "04-Soft-Skills-Positioning": "SOFTSKILL — ทักษะที่ปรึกษา",
     "05-Standards-Compliance":    "COMPLIANCE — มาตรฐาน/การปฏิบัติตามกฎ",
+    "06-Sustainability-Carbon":   "SUSTAINABILITY — Carbon & ESG",
 }
 
 # [L1] 2024-05-06 Topic.docx

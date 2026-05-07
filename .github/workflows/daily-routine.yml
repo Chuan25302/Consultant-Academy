@@ -2,7 +2,8 @@ name: Consultant Academy Daily Routine
 
 on:
   schedule:
-    - cron: "0 0 * * 1-5"   # Mon–Fri 07:00 Bangkok (UTC+7)
+    - cron: "0 0 * * 1-6"   # Mon–Sat 07:00 Bangkok (UTC+7)
+                            # Mon–Fri = full pipeline, Sat = RECAP only
   workflow_dispatch:
     inputs:
       dry_run:

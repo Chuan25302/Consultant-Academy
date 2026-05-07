@@ -32,6 +32,12 @@ def test_compliance_pillar_registered():
     assert PILLAR_CONFIG["COMPLIANCE"]["label"] == "มาตรฐาน/Compliance"
 
 
+def test_sustainability_pillar_registered():
+    assert "SUSTAINABILITY" in PILLAR_CONFIG
+    assert PILLAR_CONFIG["SUSTAINABILITY"]["icon"] == "🌱"
+    assert "Carbon" in PILLAR_CONFIG["SUSTAINABILITY"]["label"]
+
+
 def test_industry_badge_shown():
     html = DesignerAgent.create_email("test", _meta(industry="Steel"))
     assert "🏭 Steel" in html

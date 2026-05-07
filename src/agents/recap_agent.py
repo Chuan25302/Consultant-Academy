@@ -52,7 +52,7 @@ class RecapAgent:
         week_start = today - timedelta(days=today.weekday())
         summaries = []
 
-        for offset in range(4):  # Mon–Thu
+        for offset in range(5):  # Mon–Fri (recap runs Saturday)
             day = (week_start + timedelta(days=offset)).strftime("%Y-%m-%d")
             prefix = f"[Email] {day}"
             files = self.drive.list_files_by_prefix(prefix)

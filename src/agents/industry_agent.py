@@ -9,46 +9,79 @@ from src.integrations.gemini_client import GeminiClient
 logger = logging.getLogger(__name__)
 
 INDUSTRY_KNOWLEDGE = """\
-ครอบครัวอุตสาหกรรมที่ PTT NGR ESP ครอบคลุม:
+ครอบครัวอุตสาหกรรมที่ PTT NGR ESP ครอบคลุม (Thai context):
 
-1. **อาหารและยา + Cold Storage (Food / Pharma / Cold Chain)**
+1. **อาหาร / ยา / Cold Storage (Food / Pharma / Cold Chain)**
    - โรงงานแปรรูปอาหาร: cold chain, steam, CIP, HACCP
-   - โรงงานผลิตยา: clean room, GMP/cGMP, WFI, critical uptime
+   - อาหารทะเลแปรรูป: blast freezer, IQF, brine
+   - โรงงานยา: clean room, GMP/cGMP, WFI, critical uptime
    - โรงงานน้ำตาล: bagasse boiler, cogeneration, evaporator
-   - Cold Storage / คลังห้องเย็น: refrigeration cycle, door loss, defrost, NH3/CO2
+   - Cold Storage: refrigeration cycle, door loss, defrost, NH3/CO2
 
 2. **อุตสาหกรรมทั่วไป (General Manufacturing)**
-   - ชิ้นส่วนยานยนต์: stamping, paint shop, assembly line
-   - เครื่องใช้ไฟฟ้า/อิเล็กทรอนิกส์: SMT, soldering, clean room
    - เฟอร์นิเจอร์: dust collection, paint, pressing
+   - เครื่องใช้ไฟฟ้า: stamping, paint, assembly
+   - สิ่งทอ: dye house, drying
 
-3. **ปิโตรเคมีและเคมีภัณฑ์ (Petrochemicals & Chemical)**
+3. **ปิโตรเคมีและเคมีภัณฑ์ (Petrochem & Chemical)**
    - โรงกลั่นน้ำมัน: distillation, cracking, hydrogen plant
    - โรงงานพลาสติก: extrusion, injection mold, polymerization
    - โรงงานเคมีภัณฑ์: reactor, batch vs continuous, solvent recovery, scrubber
 
-4. **อุตสาหกรรมหนัก (Heavy Industry)**
+4. **อุตสาหกรรมหนัก (Heavy: Steel / Cement / Glass)**
    - เหล็กกล้า: EAF, rolling mill, reheating furnace
    - ซีเมนต์: kiln, raw mill, finish mill, preheater
-   - แก้ว (Glass Manufacturing): glass melting furnace, regenerator, oxy-fuel,
-     float bath, annealing lehr, electric boost
+   - แก้ว: melting furnace, regenerator, oxy-fuel, float bath, lehr
 
-5. **อาคารขนาดใหญ่ (Large Commercial Buildings)**
-   - โรงแรม / โรงพยาบาล / ห้างสรรพสินค้า / อาคารสำนักงาน / Data Center
-   - ใช้พลังงานหลัก: HVAC (chiller plant), lighting, plug load, lift/escalator
-   - มาตรฐาน: ASHRAE 90.1, LEED, BREEAM, TREES (TGBI), อาคารควบคุมตาม พ.ร.บ. 2535
+5. **ยานยนต์ครบวงจร (Automotive — OEM Full Vehicle + EV)** ⭐ Thailand "Detroit of Asia"
+   - OEM assembly (Toyota/Honda/Isuzu/Mitsu/MG/BYD): stamping, body weld,
+     paint shop (oven หลัก energy), trim, GA
+   - EV plant: battery pack assembly, dry room, motor winding, dyno test
+   - Engine plant: machining, heat treatment, casting
+   - มาตรฐาน: IATF 16949 (QMS), VDA 6.3 (process audit)
 
-6. **จัดการสิ่งปฏิกูล (Waste Management)**
-   - คัดแยก/ฝังกลบ (ประเภท 105): conveyor, shredder, baler
-   - ปรับคุณภาพของเสียรวม: aeration blower, pump, mixer, biogas
+6. **อิเล็กทรอนิกส์ขั้นสูง (Electronics — HDD / Semi packaging / PCB)** ⭐ ไทย world leader HDD
+   - HDD plant (WD/Seagate): clean room class 100/1000, precision cooling
+     (±0.5°C), magnetic shielding, ESD control
+   - Semi packaging (ATP/OSAT): wire bond, mold, test, burn-in
+   - PCB: SMT line, reflow oven, AOI, wave solder
+   - มาตรฐาน: IPC, ESD S20.20, IATF (auto electronics)
 
-KPI ที่แต่ละกลุ่มสนใจ (วัด energy intensity ตามนี้):
-- Food: kWh/ton สินค้า | Pharma: kWh/batch | Sugar: kWh/ตันอ้อย
-- Cold Storage: kWh/m³·day หรือ kWh/ton·day
+7. **โรงพยาบาล (Hospitals)** ⭐ 24/7 critical, ต่างจากอาคารทั่วไป
+   - Critical zones: OR (operating room), ICU, NICU — 100% backup, AIIR
+   - HVAC pressurization (positive/negative), MERV/HEPA filtration
+   - Medical gas: O2, vacuum, MA4 (medical air)
+   - Sterilization: autoclave, ETO, hot water 70°C+
+   - มาตรฐาน: ASHRAE 170, JCI, HA (สรพ.), WHO GMP
+
+8. **โรงไฟฟ้า SPP/VSPP + Biomass/Biogas/Cogen** ⭐ energy producer
+   - SPP cogeneration: gas turbine + HRSG + steam turbine (combined cycle)
+   - Biomass: rice husk/bagasse boiler, fuel handling, ash
+   - Biogas: anaerobic digester, gas cleaning, gen set
+   - VSPP solar: PV, inverter, BESS
+   - มาตรฐาน: ERC license, ASME I/IV, EHIA
+
+9. **อาคารขนาดใหญ่ (Large Commercial Buildings + Data Center)**
+   - โรงแรม / ห้าง / สำนักงาน: HVAC chiller plant, lighting, plug load
+   - Data Center (Equinix/STT/AIS): cooling load 60-70% of total, PUE focus,
+     UPS, redundancy N+1/2N
+   - มาตรฐาน: ASHRAE 90.1, LEED, BREEAM, TREES (TGBI), Uptime Tier I-IV,
+     อาคารควบคุมตาม พ.ร.บ. 2535, BEC
+
+10. **จัดการสิ่งปฏิกูล (Waste Management)**
+    - คัดแยก/ฝังกลบ (ประเภท 105): conveyor, shredder, baler, landfill gas
+    - ปรับคุณภาพของเสียรวม: aeration blower, pump, mixer, biogas
+
+KPI energy intensity ที่แต่ละกลุ่มสนใจ:
+- Food: kWh/ton | Pharma: kWh/batch | Sugar: kWh/ตันอ้อย | Cold: kWh/m³·day
 - Manufacturing: kWh/หน่วย | Refinery: kWh/บาเรล | Plastic: kWh/kg
 - Chemical: kWh/ton สารผลิต
 - Steel: kWh/ตันเหล็ก | Cement: kWh/ตันปูน | Glass: kWh/ตันแก้วหลอม
-- Buildings: kWh/m²·yr (EUI) | Data Center: PUE
+- Auto: kWh/คัน หรือ kWh/engine | EV: kWh/battery pack
+- Electronics: kWh/wafer | HDD: kWh/drive
+- Hospital: kWh/bed·day หรือ kWh/m²·yr
+- SPP: heat rate (kJ/kWh), thermal efficiency %, capacity factor
+- Buildings: EUI (kWh/m²·yr) | Data Center: PUE
 - Waste: kWh/ตันของเสีย
 """
 

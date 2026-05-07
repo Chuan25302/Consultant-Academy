@@ -161,19 +161,49 @@ COMPLIANCE_PROMPT = """
 {anti_halluc}
 
 มาตรฐาน/กฎหมายที่ใช้บ่อย — อ้างเฉพาะที่มีอยู่จริง:
+
+**กฎหมายไทย / มาตรฐานในประเทศ:**
 - พ.ร.บ. ส่งเสริมการอนุรักษ์พลังงาน 2535 (โรงงาน + อาคารควบคุม)
-- ISO 50001 — Energy Management System
-- ISO 14001 — Environmental Management
-- ISO 9001 — Quality Management
-- HACCP — Food safety hazard analysis
-- GMP / cGMP — Good Manufacturing Practice (อาหาร/ยา)
-- มอก. (TIS) เลขที่เฉพาะของแต่ละอุปกรณ์ (TIS 2677, TIS 866 ฯลฯ)
+- ม.32 พ.ร.บ. — ผู้รับผิดชอบด้านพลังงาน (PRE)
+- กรอ.4 — รายงานพลังงานประจำปีต่อกรมโรงงานอุตสาหกรรม
+- BEC (Building Energy Code) — กฎกระทรวงประหยัดพลังงานอาคาร
+- มอก. (TIS): TIS 2780 (motor IE3), TIS 2854 (chiller), TIS 866 (boiler),
+  TIS 3196 (LED), TIS 1955 (luminaire) — อ้างเลขเฉพาะที่แน่ใจ
 - DEDE Energy Audit Type I (เริ่มต้น) / Type II (ละเอียด)
-- ASHRAE 90.1 — Energy Standard for Buildings
+- EHIA / EIA — รายงานผลกระทบสิ่งแวดล้อม (เกณฑ์ขนาด)
+
+**ISO มาตรฐานสากล:**
+- ISO 50001 — Energy Management System
+- ISO 50002 — Energy audit methodology (sister ของ 50001)
+- ISO 14001 — Environmental Management
+- ISO 14064-1 — GHG quantification (Scope 1/2/3 ระดับองค์กร)
+- ISO 14067 — Carbon Footprint of Products
+- ISO 9001 — Quality Management
+- ISO 45001 — Occupational Health & Safety (มาแทน OHSAS 18001)
+- ISO 17025 — Calibration laboratories
+
+**Sector-specific:**
+- HACCP / BRCGS / FSSC 22000 — Food safety
+- GMP / cGMP / WHO GMP / PIC/S — Pharma
+- IATF 16949 — Automotive QMS
+- IPC standards — Electronics
+- AS9100 — Aerospace
+- ASME I/IV — Pressure vessels & boilers
+
+**Building & HVAC:**
+- ASHRAE 90.1 (Energy) / 62.1 (IAQ) / 188 (Legionella) / 55 (Comfort)
+- LEED / BREEAM / TREES (TGBI) — Green Building
+- WELL — Wellness in buildings
+
+**Measurement & Carbon:**
+- IPMVP (EVO) — Measurement & Verification
+- GHG Protocol — Corporate accounting standard
+- TCFD — Climate-related disclosures
+
+**Power & Process:**
+- IEEE 519 — Harmonics
+- IEC 61000 — Power quality / EMC
 - API Standards — Oil & Gas
-- LEED / BREEAM / TREES — Green Building certification
-- TCFD / GHG Protocol — Carbon disclosure
-- EHIA / EIA — รายงานผลกระทบสิ่งแวดล้อม
 
 เขียน Markdown ภาษาไทย โครงสร้าง:
 
@@ -198,12 +228,77 @@ COMPLIANCE_PROMPT = """
 รวมไม่เกิน 600 คำ — ถ้าอ้างมาตรฐานต้องเป็นชื่อจริง 100%
 """
 
+SUSTAINABILITY_PROMPT = """
+คุณคือ Carbon & Sustainability Consultant ของ PTT NGR ESP
+รู้บริบทไทย: TGO, T-VER, CBAM, Net Zero 2065, EV30@30, RE100 commitment ของ MNC
+
+หัวข้อ: {topic}
+อุตสาหกรรม: {industry}
+ข้อมูลวิจัย: {research}
+
+{anti_halluc}
+
+กรอบ/โปรแกรมที่ใช้บ่อย — อ้างเฉพาะที่มีจริง:
+
+**ไทย — Voluntary & Mandatory:**
+- TGO (องค์การบริหารจัดการก๊าซเรือนกระจก) Carbon Footprint Program
+- T-VER (Thailand Voluntary Emission Reduction) — ขายเครดิตได้
+- CFO (Carbon Footprint of Organization) / CFP (Product) Label
+- TCFD reporting — บริษัทใน SET ต้องเปิดเผย
+- Net Zero 2065 / Carbon Neutrality 2050 (ของรัฐบาลไทย)
+
+**International standards:**
+- ISO 14064-1 — GHG quantification ระดับองค์กร (Scope 1/2/3)
+- ISO 14064-2 — Project-level GHG (สำหรับ T-VER)
+- ISO 14067 — Product Carbon Footprint
+- GHG Protocol — Corporate Accounting & Reporting
+- SBTi (Science-Based Targets) — 1.5°C pathway
+- RE100 — 100% renewable electricity commitment
+- I-REC / TIGR — Renewable Energy Certificate (ใช้ใน Scope 2 market-based)
+
+**EU + Trade:**
+- CBAM (EU Carbon Border) — เหล็ก/ปูน/อะลูมิเนียม/ไฟฟ้า/ปุ๋ย/ไฮโดรเจน
+  ส่งออกยุโรป → reporting since 2023, full tariff 2026
+- EU CSRD / ESRS — supplier disclosure
+
+**Reporting frameworks:**
+- GRI / SASB / TCFD / IFRS S1/S2
+
+โครงสร้าง Markdown ภาษาไทย:
+
+## ภาพรวม
+[ทำไม{topic}สำคัญ + Thai context — อ้างเฉพาะที่มีจริง]
+
+## Scope / ขอบเขต
+[ครอบคลุมอะไร — Scope 1 (โดยตรง) / 2 (ไฟฟ้าซื้อ) / 3 (supply chain)
+หรือ project boundary ตามกรอบที่ใช้]
+
+## วิธีคำนวณ / ข้อมูลที่ต้องเก็บ
+[step + emission factor source (TGO EF, IPCC, IEA)
++ ตัวอย่างคำนวณตัวเลขจริง — ใช้ range ถ้าไม่มี source]
+
+## Cost / Revenue Implication
+[CBAM tariff impact ($/ตัน CO₂e) | T-VER credit revenue (THB/ตัน)
+| RE100 cost via I-REC (THB/MWh) | ESG financing rate discount
+ใช้ range เสมอ ห้ามแต่งเลขเฉพาะ]
+
+## Common Pitfalls
+[double counting | scope boundary error | baseline drift
+| Scope 2 location vs market-based | T-VER additionality]
+
+## Consultant Move
+[1–2 คำถามที่ scope งาน carbon + opportunity ที่ปรึกษาเห็น]
+
+รวมไม่เกิน 600 คำ — ห้ามแต่งตัวเลข emission/credit/tariff
+"""
+
 PROMPTS = {
-    "TECHNICAL":  TECHNICAL_PROMPT,
-    "INDUSTRY":   INDUSTRY_PROMPT,
-    "FRAMEWORK":  FRAMEWORK_PROMPT,
-    "SOFTSKILL":  SOFTSKILL_PROMPT,
-    "COMPLIANCE": COMPLIANCE_PROMPT,
+    "TECHNICAL":      TECHNICAL_PROMPT,
+    "INDUSTRY":       INDUSTRY_PROMPT,
+    "FRAMEWORK":      FRAMEWORK_PROMPT,
+    "SOFTSKILL":      SOFTSKILL_PROMPT,
+    "COMPLIANCE":     COMPLIANCE_PROMPT,
+    "SUSTAINABILITY": SUSTAINABILITY_PROMPT,
 }
 
 

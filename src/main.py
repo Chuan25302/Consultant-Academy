@@ -39,11 +39,12 @@ from src.utils.logger import setup_logger
 logger = setup_logger(__name__)
 
 PILLAR_FOLDER = {
-    "TECHNICAL":  "01-Technical-Depth",
-    "INDUSTRY":   "02-Industry-Business-Logic",
-    "FRAMEWORK":  "03-Diagnostic-Frameworks",
-    "SOFTSKILL":  "04-Soft-Skills-Positioning",
-    "COMPLIANCE": "05-Standards-Compliance",
+    "TECHNICAL":      "01-Technical-Depth",
+    "INDUSTRY":       "02-Industry-Business-Logic",
+    "FRAMEWORK":      "03-Diagnostic-Frameworks",
+    "SOFTSKILL":      "04-Soft-Skills-Positioning",
+    "COMPLIANCE":     "05-Standards-Compliance",
+    "SUSTAINABILITY": "06-Sustainability-Carbon",
 }
 
 DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
