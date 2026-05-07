@@ -1,0 +1,71 @@
+name: Consultant Academy Daily Routine
+
+on:
+  schedule:
+    - cron: "0 0 * * 1-6"   # Mon–Sat 07:00 Bangkok (UTC+7)
+                            # Mon–Fri = full pipeline, Sat = RECAP only
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Dry run (skip Drive uploads)"
+        required: false
+        default: "false"
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Write service account key
+        run: |
+          printf '%s' '${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}' > service-account.json
+          test -s service-account.json || (echo "::error::GOOGLE_SERVICE_ACCOUNT_JSON secret is empty" && exit 1)
+
+      - name: Run daily routine
+        env:
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+          GOOGLE_SERVICE_ACCOUNT_FILE: service-account.json
+          CALENDAR_FILE_ID: ${{ secrets.CALENDAR_FILE_ID }}
+          FOLDER_EMAIL_ARCHIVES: ${{ secrets.FOLDER_EMAIL_ARCHIVES }}
+          FOLDER_KNOWLEDGE_BASE: ${{ secrets.FOLDER_KNOWLEDGE_BASE }}
+          FOLDER_PROGRAM_MGMT: ${{ secrets.FOLDER_PROGRAM_MGMT }}
+        run: |
+          if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
+            python src/main.py --dry-run
+          else
+            python src/main.py
+          fi
+
+      - name: Upload cost log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cost-log-${{ github.run_id }}
+          path: data/cost_log.jsonl
+          retention-days: 30
+
+      - name: Notify Slack on failure
+        if: failure()
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          if [ -n "$SLACK_WEBHOOK_URL" ]; then
+            curl -sS -X POST -H 'Content-type: application/json' \
+              --data "{\"text\":\":x: Consultant Academy daily routine failed. Run: $RUN_URL\"}" \
+              "$SLACK_WEBHOOK_URL" || true
+          fi
+
+      - name: Always clean up service account key
+        if: always()
+        run: rm -f service-account.json
