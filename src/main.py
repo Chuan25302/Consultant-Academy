@@ -140,10 +140,8 @@ def main(date: str = None, dry_run: bool = False,
 
     edited = EditorAgent(gemini).review(translated)
 
-    # Connector: append "อ่านเพิ่ม" linking to articles in the same cluster
     index = IndexBuilder(drive, s)
-    related = index.find_related(topic) if not dry_run else []
-    final_md = edited + IndexBuilder.render_related_section(related)
+    final_md = edited
 
     email_html = DesignerAgent.create_email(final_md, topic)
 

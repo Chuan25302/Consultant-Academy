@@ -22,7 +22,8 @@ NUMBER_WITH_UNIT_RE = re.compile(
     re.IGNORECASE,
 )
 GLOSSARY_RE = re.compile(r"📖|ศัพท์น่ารู้")
-CMOVE_RE = re.compile(r"Consultant\s*Move", re.IGNORECASE)
+CASE_STUDY_RE = re.compile(r"Case\s*Study|Situation|Complication", re.IGNORECASE)
+TAKEAWAY_RE = re.compile(r"Takeaway|ทีม\s*Sales|ทีม\s*Technical", re.IGNORECASE)
 
 # Anti-hallucination spot check — catches leftover specifics the FactChecker
 # might have missed. Person-name detection in Thai is unreliable (no spaces
@@ -76,8 +77,10 @@ class EditorAgent:
     @staticmethod
     def check(md: str) -> list[str]:
         issues = []
-        if not CMOVE_RE.search(md):
-            issues.append("ขาด Consultant Move section (## Consultant Move)")
+        if not CASE_STUDY_RE.search(md):
+            issues.append("ขาด Case Study section (Situation / Complication / Result)")
+        if not TAKEAWAY_RE.search(md):
+            issues.append("ขาด Takeaways section (ทีม Sales / ทีม Technical)")
         if not GLOSSARY_RE.search(md):
             issues.append("ขาด glossary บรรทัดสุดท้าย (📖 ศัพท์น่ารู้: ...)")
         nums = NUMBER_WITH_UNIT_RE.findall(md)
