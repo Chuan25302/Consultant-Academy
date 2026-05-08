@@ -60,6 +60,16 @@ jobs:
           EMAIL_SENDER: ${{ secrets.EMAIL_SENDER }}
           EMAIL_APP_PASSWORD: ${{ secrets.EMAIL_APP_PASSWORD }}
           EMAIL_RECIPIENTS: ${{ secrets.EMAIL_RECIPIENTS }}
+          GEMINI_MODEL: gemini-2.5-flash
+          GEMINI_MODEL_RESEARCH: gemini-2.5-flash
+          GEMINI_MODEL_EXPERT: gemini-2.5-pro
+          GEMINI_MODEL_INDUSTRY: gemini-2.5-flash
+          GEMINI_MODEL_FACTCHECKER: gemini-2.5-pro
+          GEMINI_MODEL_TRANSLATOR: gemini-2.5-flash
+          GEMINI_MODEL_EDITOR: gemini-2.5-pro
+          GEMINI_MODEL_SUSTAINABILITY: gemini-2.5-pro
+          GEMINI_MODEL_PLANNER: gemini-2.5-pro
+          GEMINI_MODEL_RECAP: gemini-2.5-flash
         run: |
           ARGS=""
           [ "${{ github.event.inputs.dry_run }}" = "true" ] && ARGS="$ARGS --dry-run"
