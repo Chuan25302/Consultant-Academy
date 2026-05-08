@@ -126,6 +126,7 @@ def test_generate_returns_none_if_no_dates_in_calendar():
 
 
 def test_generate_passes_history_and_start_date_to_llm():
+    from unittest.mock import patch
     agent = _make_agent()
     fake_output = "\n".join([
         "### Week 5",
@@ -135,7 +136,10 @@ def test_generate_passes_history_and_start_date_to_llm():
         ],
     ])
     agent.gemini.generate.return_value = fake_output
-    out = agent.generate(SAMPLE_CALENDAR, num_weeks=1)
+    # mock today to before calendar's last date so Planner uses last_date path
+    with patch("src.agents.planner_agent.now_bangkok",
+               return_value=datetime(2024, 5, 1)):
+        out = agent.generate(SAMPLE_CALENDAR, num_weeks=1)
     assert out is not None
     args, _ = agent.gemini.generate.call_args
     prompt = args[0]
