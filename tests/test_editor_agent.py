@@ -2,21 +2,31 @@ from unittest.mock import MagicMock
 
 from src.agents.editor_agent import EditorAgent
 
-GOOD = """## สถานการณ์
-โรงแรม 200 ห้องในกรุงเทพ ใช้ chiller รวม 800 kW ค่าไฟเดือนละ 250000 บาท
+GOOD = """สวัสดีทีมงาน Sales และ Technical ทุกท่าน
 
-## หลักการ
-COP ของ chiller คือ ratio ของ cooling output ต่อ input
+## 1. Chiller ในมุมมอง Consultant
 
-## วิธีวิเคราะห์
-ใช้ data logger 1 สัปดาห์ ราคา 5000 บาท
+ลูกค้าไม่ต้องการ chiller ใหม่ แต่ต้องการลดค่าไฟที่วัดผลได้
 
-## ตัวเลือกแก้ไข
-- แก้ด่วน: ทำความสะอาด condenser ลด 5% ROI 0.5 ปี
-- ปรับปรุง: เปลี่ยน chiller ลด 25% ROI 3 ปี
+## 2. Case Study
 
-## Consultant Move
-ถามลูกค้า: COP ปัจจุบันเท่าไหร่?
+**Situation:** โรงแรม 200 ห้องในกรุงเทพ ค่าไฟเดือนละ 250000 บาท
+
+**Complication:** chiller ทำงาน 800 kW แต่ไม่มี data baseline
+
+**Consultant's Approach:**
+- วิเคราะห์ COP จริงด้วย data logger 5000 บาท
+- เทียบกับ ASHRAE standard
+
+**Result:** ลด COP loss ได้ 25% คืนทุนภายใน 3 ปี
+
+## 3. Takeaways
+
+**ทีม Sales:**
+- Pitch ด้วย ROI ไม่ใช่ spec
+
+**ทีม Technical:**
+- วัด COP ก่อนเสนอ solution
 
 📖 ศัพท์น่ารู้: COP = ค่าประสิทธิภาพ | Fouling = คราบสะสม
 """
@@ -27,9 +37,9 @@ def test_check_passes_full_article():
 
 
 def test_check_flags_missing_consultant_move():
-    md = GOOD.replace("## Consultant Move", "## ข้อสรุป")
+    md = GOOD.replace("Case Study", "กรณีศึกษา").replace("Situation", "สถานการณ์").replace("Complication", "ปัญหา")
     issues = EditorAgent.check(md)
-    assert any("Consultant Move" in i for i in issues)
+    assert any("Case Study" in i for i in issues)
 
 
 def test_check_flags_missing_glossary():

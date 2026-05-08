@@ -171,14 +171,12 @@ def main(date: str = None, dry_run: bool = False,
         docx_bytes = markdown_to_docx_bytes(edited, title=topic["topic"])
         drive.upload(docx_filename, docx_bytes, kb_folder, DOCX_MIME)
 
-        # Rebuild master index so new hires always have an up-to-date map.
-        # Reuse the same IndexBuilder instance — its article cache was
-        # already populated by find_related() above.
         logger.info("📚 Rebuilding Knowledge Base master index...")
-        index._articles_cache = None  # invalidate so the new article shows up
         index.rebuild()
 
-        send_daily_email(subject, email_html)
+        email_ok = send_daily_email(subject, email_html)
+        if not email_ok:
+            logger.warning("📧 Email not sent — check EMAIL_SENDER/APP_PASSWORD/RECIPIENTS")
 
         # Auto-extend calendar if running low (non-blocking — failures are
         # logged but don't fail today's run since today's content already

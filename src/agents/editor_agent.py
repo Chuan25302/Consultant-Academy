@@ -23,7 +23,7 @@ NUMBER_WITH_UNIT_RE = re.compile(
 )
 GLOSSARY_RE = re.compile(r"📖|ศัพท์น่ารู้")
 CASE_STUDY_RE = re.compile(r"Case\s*Study|Situation|Complication", re.IGNORECASE)
-TAKEAWAY_RE = re.compile(r"Takeaway|ทีม\s*Sales|ทีม\s*Technical", re.IGNORECASE)
+TAKEAWAY_RE = re.compile(r"Takeaways?|ทีม\s*Sales|ทีม\s*Technical", re.IGNORECASE)
 
 # Anti-hallucination spot check — catches leftover specifics the FactChecker
 # might have missed. Person-name detection in Thai is unreliable (no spaces

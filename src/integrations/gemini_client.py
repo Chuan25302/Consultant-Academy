@@ -42,6 +42,11 @@ class GeminiClient:
             logger.info(f"✅ Gemini via Vertex AI (project={settings.VERTEX_AI_PROJECT}, "
                         f"location={settings.VERTEX_AI_LOCATION})")
         else:
+            if not settings.GOOGLE_API_KEY:
+                raise ValueError(
+                    "GOOGLE_API_KEY is not set and VERTEX_AI_PROJECT is empty — "
+                    "set one of them before running."
+                )
             self.client = genai.Client(api_key=settings.GOOGLE_API_KEY)
             logger.info(f"✅ Gemini via API Key (default: {settings.GEMINI_MODEL})")
 

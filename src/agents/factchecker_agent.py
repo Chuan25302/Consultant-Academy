@@ -55,8 +55,7 @@ Source data ที่ verify ได้ (จาก Research agent):
 
 ห้ามทำ:
 - ห้ามแก้โครงสร้าง (## หัวข้อ ทั้งหมดต้องเหมือนเดิม)
-- ห้ามลบ "Consultant Move" section
-- ห้ามลบ glossary
+- ห้ามลบ Case Study / Takeaways / glossary sections
 - ห้ามแต่งเรื่องใหม่ — แค่ soften สิ่งที่มี
 
 ตอบกลับ Markdown ฉบับแก้แล้ว เท่านั้น ไม่ต้องอธิบาย ไม่ต้องใส่ comment
@@ -75,9 +74,13 @@ class FactCheckerAgent:
             return content
 
         logger.info(f"🔍 FactChecker: {len(flags)} suspicious pattern(s) — calling Pro for review")
+        research_summary = {k: v for k, v in research.items()
+                            if k in ("summary", "key_facts", "sources", "standards")}
+        if not research_summary:
+            research_summary = research
         improved = self.gemini.generate(
             PROMPT.format(
-                research_json=json.dumps(research, ensure_ascii=False)[:1500],
+                research_json=json.dumps(research_summary, ensure_ascii=False)[:1500],
                 content=content,
             ),
             max_tokens=2500,

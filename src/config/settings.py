@@ -33,7 +33,7 @@ class Settings:
     # Default model for all agents. Override per-agent with
     # GEMINI_MODEL_<AGENT> env vars (RESEARCH | EXPERT | INDUSTRY |
     # TRANSLATOR | RECAP). Any model the google-genai SDK accepts.
-    GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
+    GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
 
     MAX_TOKENS_PER_AGENT: int = 2000
     RESEARCH_CACHE_TTL_DAYS: int = 7
