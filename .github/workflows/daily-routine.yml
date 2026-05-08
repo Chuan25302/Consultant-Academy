@@ -10,6 +10,10 @@ on:
         description: "Dry run (skip Drive uploads)"
         required: false
         default: "false"
+      date:
+        description: "Override date YYYY-MM-DD (default: today Bangkok)"
+        required: false
+        default: ""
 
 jobs:
   run:
@@ -51,11 +55,10 @@ jobs:
           EMAIL_APP_PASSWORD: ${{ secrets.EMAIL_APP_PASSWORD }}
           EMAIL_RECIPIENTS: ${{ secrets.EMAIL_RECIPIENTS }}
         run: |
-          if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
-            python src/main.py --dry-run
-          else
-            python src/main.py
-          fi
+          ARGS=""
+          [ "${{ github.event.inputs.dry_run }}" = "true" ] && ARGS="$ARGS --dry-run"
+          [ -n "${{ github.event.inputs.date }}" ] && ARGS="$ARGS --date ${{ github.event.inputs.date }}"
+          python src/main.py $ARGS
 
       - name: Upload cost log
         if: always()
