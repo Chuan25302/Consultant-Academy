@@ -39,6 +39,7 @@ from src.utils.cli import parse_date, validate_startup
 from src.utils.cost_tracker import CostTracker
 from src.utils.docx_writer import markdown_to_docx_bytes
 from src.utils.index_builder import IndexBuilder
+from src.utils.email_sender import send_daily_email
 from src.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
@@ -155,10 +156,13 @@ def main(date: str = None, dry_run: bool = False,
     email_filename = f"[Email] {date_str} {topic['topic']}.html"
     docx_filename  = f"[L{level}] {date_str} {topic['topic'][:50]}.docx"
 
+    subject = f"[Consultant Academy] {date_str} | {topic['topic']}"
+
     if dry_run:
         logger.info(f"🧪 [dry-run] would upload: {email_filename}")
         logger.info(f"🧪 [dry-run] would upload: {pillar_dir}/{cluster}/{docx_filename}")
         logger.info("🧪 [dry-run] would rebuild Knowledge Base master index")
+        logger.info(f"🧪 [dry-run] would send email: {subject}")
     else:
         email_folder = drive.get_or_create_folder(
             f"Email Archives/{month_path}", s.FOLDER_EMAIL_ARCHIVES)
@@ -175,6 +179,8 @@ def main(date: str = None, dry_run: bool = False,
         logger.info("📚 Rebuilding Knowledge Base master index...")
         index._articles_cache = None  # invalidate so the new article shows up
         index.rebuild()
+
+        send_daily_email(subject, email_html)
 
         # Auto-extend calendar if running low (non-blocking — failures are
         # logged but don't fail today's run since today's content already

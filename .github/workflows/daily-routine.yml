@@ -43,6 +43,9 @@ jobs:
           FOLDER_EMAIL_ARCHIVES: ${{ secrets.FOLDER_EMAIL_ARCHIVES }}
           FOLDER_KNOWLEDGE_BASE: ${{ secrets.FOLDER_KNOWLEDGE_BASE }}
           FOLDER_PROGRAM_MGMT: ${{ secrets.FOLDER_PROGRAM_MGMT }}
+          EMAIL_SENDER: ${{ secrets.EMAIL_SENDER }}
+          EMAIL_APP_PASSWORD: ${{ secrets.EMAIL_APP_PASSWORD }}
+          EMAIL_RECIPIENTS: ${{ secrets.EMAIL_RECIPIENTS }}
         run: |
           if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
             python src/main.py --dry-run
