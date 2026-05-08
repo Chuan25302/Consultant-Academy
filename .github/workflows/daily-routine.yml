@@ -32,6 +32,10 @@ jobs:
           test -s google-key.json || (echo "::error::GOOGLE_SERVICE_ACCOUNT_JSON secret is empty" && exit 1)
           printf '%s' '${{ secrets.VERTEX_AI_SERVICE_ACCOUNT_JSON }}' > vertex-ai-service-key.json
           test -s vertex-ai-service-key.json || (echo "::error::VERTEX_AI_SERVICE_ACCOUNT_JSON secret is empty" && exit 1)
+          if [ -n '${{ secrets.GOOGLE_OAUTH_TOKEN_JSON }}' ]; then
+            printf '%s' '${{ secrets.GOOGLE_OAUTH_TOKEN_JSON }}' > oauth-token.json
+            echo "OAuth token written"
+          fi
 
       - name: Run daily routine
         env:
@@ -75,4 +79,4 @@ jobs:
 
       - name: Always clean up service account keys
         if: always()
-        run: rm -f google-key.json vertex-ai-service-key.json
+        run: rm -f google-key.json vertex-ai-service-key.json oauth-token.json

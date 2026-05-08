@@ -2,6 +2,8 @@
 .env
 credentials.json
 token.json
+oauth-client.json
+oauth-token.json
 *.pem
 service-account.json
 google-key.json

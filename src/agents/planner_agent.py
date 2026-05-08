@@ -181,15 +181,19 @@ class CalendarPlannerAgent:
             history=history or "(ปฏิทินว่าง)",
             total_lines=total_lines,
         )
-        raw = self.gemini.generate(
-            prompt, max_tokens=3500, agent_tag="planner"
-        )
-        if not raw or raw.startswith("[Error"):
-            logger.error("Planner LLM failed")
-            return None
-        # Require at least 4 dated lines per week (planner can skip weak days)
-        cleaned = self._validate(raw, expected_min_lines=num_weeks * 4)
-        return cleaned
+        for attempt in range(1, 3):  # up to 2 attempts
+            raw = self.gemini.generate(
+                prompt, max_tokens=5000, agent_tag="planner"
+            )
+            if not raw or raw.startswith("[Error"):
+                logger.error("Planner LLM failed")
+                return None
+            # Require at least 4 dated lines per week (planner can skip weak days)
+            cleaned = self._validate(raw, expected_min_lines=num_weeks * 4)
+            if cleaned:
+                return cleaned
+            logger.warning(f"Planner attempt {attempt} failed validation, retrying...")
+        return None
 
     def append_to_drive(self, calendar_text: str, new_content: str) -> bool:
         if not self.settings.CALENDAR_FILE_ID:

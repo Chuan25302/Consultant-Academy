@@ -8,6 +8,9 @@ class Settings:
     GOOGLE_SERVICE_ACCOUNT_FILE: str = os.getenv(
         "GOOGLE_SERVICE_ACCOUNT_FILE", "service-account.json"
     )
+    GOOGLE_OAUTH_TOKEN_FILE: str = os.getenv(
+        "GOOGLE_OAUTH_TOKEN_FILE", "oauth-token.json"
+    )
 
     # Vertex AI — ถ้าตั้งค่า VERTEX_AI_PROJECT จะใช้ Vertex แทน API Key
     VERTEX_AI_PROJECT: str = os.getenv("VERTEX_AI_PROJECT", "")
