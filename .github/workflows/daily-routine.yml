@@ -26,15 +26,19 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Write service account key
+      - name: Write service account keys
         run: |
-          printf '%s' '${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}' > service-account.json
-          test -s service-account.json || (echo "::error::GOOGLE_SERVICE_ACCOUNT_JSON secret is empty" && exit 1)
+          printf '%s' '${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}' > google-key.json
+          test -s google-key.json || (echo "::error::GOOGLE_SERVICE_ACCOUNT_JSON secret is empty" && exit 1)
+          printf '%s' '${{ secrets.VERTEX_AI_SERVICE_ACCOUNT_JSON }}' > vertex-ai-service-key.json
+          test -s vertex-ai-service-key.json || (echo "::error::VERTEX_AI_SERVICE_ACCOUNT_JSON secret is empty" && exit 1)
 
       - name: Run daily routine
         env:
-          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
-          GOOGLE_SERVICE_ACCOUNT_FILE: service-account.json
+          GOOGLE_SERVICE_ACCOUNT_FILE: google-key.json
+          VERTEX_AI_SERVICE_ACCOUNT_FILE: vertex-ai-service-key.json
+          VERTEX_AI_PROJECT: ${{ secrets.VERTEX_AI_PROJECT }}
+          VERTEX_AI_LOCATION: ${{ secrets.VERTEX_AI_LOCATION }}
           CALENDAR_FILE_ID: ${{ secrets.CALENDAR_FILE_ID }}
           FOLDER_EMAIL_ARCHIVES: ${{ secrets.FOLDER_EMAIL_ARCHIVES }}
           FOLDER_KNOWLEDGE_BASE: ${{ secrets.FOLDER_KNOWLEDGE_BASE }}
@@ -66,6 +70,6 @@ jobs:
               "$SLACK_WEBHOOK_URL" || true
           fi
 
-      - name: Always clean up service account key
+      - name: Always clean up service account keys
         if: always()
-        run: rm -f service-account.json
+        run: rm -f google-key.json vertex-ai-service-key.json
