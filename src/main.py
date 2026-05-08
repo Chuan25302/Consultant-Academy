@@ -193,6 +193,7 @@ def main(date: str = None, dry_run: bool = False,
     daily_cost = cost.daily_total()
     logger.info(f"💰 Daily cost: ${daily_cost:.4f}")
     logger.info("✅ DONE")
+    sys.stdout.flush()
 
     return {"status": "success", "topic": topic["topic"],
             "pillar": topic["pillar"], "cost_usd": daily_cost}

@@ -32,7 +32,7 @@ def send_daily_email(subject: str, html_body: str) -> bool:
     msg.attach(MIMEText(html_body, "html", "utf-8"))
 
     try:
-        with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as smtp:
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=30) as smtp:
             smtp.ehlo()
             smtp.starttls()
             smtp.login(sender, password)
