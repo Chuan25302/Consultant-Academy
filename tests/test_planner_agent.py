@@ -119,22 +119,50 @@ def test_validate_rejects_when_too_few_valid_lines():
     assert agent._validate(raw, expected_min_lines=4) is None
 
 
+def test_validate_rejects_non_recap_saturday():
+    """2024-06-08 is a Saturday — must be RECAP, not TECHNICAL."""
+    agent = _make_agent()
+    raw = "\n".join([
+        "- **2024-06-03**: TECHNICAL | A | X | k | cluster=c | level=1",
+        "- **2024-06-04**: INDUSTRY | B | X | k | cluster=c | level=1",
+        "- **2024-06-05**: FRAMEWORK | C | X | k | cluster=c | level=1",
+        "- **2024-06-06**: SOFTSKILL | D | X | k | cluster=c | level=1",
+        "- **2024-06-07**: SUSTAINABILITY | E | X | k | cluster=c | level=1",
+        "- **2024-06-08**: TECHNICAL | wrong-pillar-for-sat | X | k | cluster=c | level=1",
+    ])
+    assert agent._validate(raw, expected_min_lines=6) is None
+
+
+def test_validate_accepts_recap_saturday():
+    agent = _make_agent()
+    raw = "\n".join(_fake_week(13))  # 2024-05-18 is Sat → RECAP
+    cleaned = agent._validate(raw, expected_min_lines=6)
+    assert cleaned is not None
+    assert "RECAP | สรุปสัปดาห์" in cleaned
+
+
 def test_generate_returns_none_if_no_dates_in_calendar():
     agent = _make_agent()
     out = agent.generate("# empty\n")
     assert out is None
 
 
+def _fake_week(start_day: int, month: int = 5, year: int = 2024) -> list[str]:
+    """Build Mon-Sat fixture lines (Sat must be RECAP per validator)."""
+    lines = [
+        f"- **{year}-{month:02d}-{start_day+i:02d}**: TECHNICAL | T{i} | X | k | cluster=c | level=1"
+        for i in range(5)
+    ]
+    lines.append(
+        f"- **{year}-{month:02d}-{start_day+5:02d}**: RECAP | สรุปสัปดาห์ | General | recap"
+    )
+    return lines
+
+
 def test_generate_passes_history_and_start_date_to_llm():
     from unittest.mock import patch
     agent = _make_agent()
-    fake_output = "\n".join([
-        "### Week 5",
-        *[
-            f"- **2024-05-{13+i:02d}**: TECHNICAL | T{i} | X | k | cluster=c | level=1"
-            for i in range(6)
-        ],
-    ])
+    fake_output = "\n".join(["### Week 5", *_fake_week(13)])
     agent.gemini.generate.return_value = fake_output
     # mock today to before calendar's last date so Planner uses last_date path
     with patch("src.agents.planner_agent.now_bangkok",
@@ -149,10 +177,7 @@ def test_generate_passes_history_and_start_date_to_llm():
 
 def test_force_extend_writes_to_drive_when_not_dry_run():
     agent = _make_agent()
-    fake_output = "\n".join([
-        f"- **2024-05-{13+i:02d}**: TECHNICAL | T{i} | X | k | cluster=c | level=1"
-        for i in range(6)
-    ])
+    fake_output = "\n".join(_fake_week(13))
     agent.gemini.generate.return_value = fake_output
     agent.drive.update_file_content.return_value = "ok"
 
@@ -168,10 +193,7 @@ def test_force_extend_writes_to_drive_when_not_dry_run():
 
 def test_force_extend_skips_drive_when_dry_run():
     agent = _make_agent()
-    fake_output = "\n".join([
-        f"- **2024-05-{13+i:02d}**: TECHNICAL | T{i} | X | k | cluster=c | level=1"
-        for i in range(6)
-    ])
+    fake_output = "\n".join(_fake_week(13))
     agent.gemini.generate.return_value = fake_output
 
     ok = agent.force_extend(SAMPLE_CALENDAR, num_weeks=1, dry_run=True)
@@ -190,10 +212,8 @@ def test_maybe_extend_skips_when_calendar_has_room():
 def test_maybe_extend_runs_when_calendar_runs_low():
     agent = _make_agent()
     today = _date("2024-12-01")  # well past last entry
-    fake_output = "\n".join([
-        f"- **2024-12-{2+i:02d}**: TECHNICAL | T{i} | X | k | cluster=c | level=1"
-        for i in range(6)
-    ])
+    # 2024-12-02 = Mon, 2024-12-07 = Sat → fixture aligns Mon-Sat
+    fake_output = "\n".join(_fake_week(2, month=12))
     agent.gemini.generate.return_value = fake_output
     agent.drive.update_file_content.return_value = "ok"
 
@@ -204,10 +224,7 @@ def test_maybe_extend_runs_when_calendar_runs_low():
 
 def test_planner_agent_tag_for_cost_tracking():
     agent = _make_agent()
-    fake_output = "\n".join([
-        f"- **2024-05-{13+i:02d}**: TECHNICAL | T{i} | X | k | cluster=c | level=1"
-        for i in range(6)
-    ])
+    fake_output = "\n".join(_fake_week(13))
     agent.gemini.generate.return_value = fake_output
     agent.generate(SAMPLE_CALENDAR, num_weeks=1)
     _, kwargs = agent.gemini.generate.call_args

@@ -138,8 +138,11 @@ class CalendarPlannerAgent:
         return d
 
     def _validate(self, generated: str, expected_min_lines: int) -> str | None:
-        """Drop malformed lines; reject output if too few valid entries."""
+        """Drop malformed lines; reject output if too few valid entries or
+        if any Saturday is missing a RECAP entry (Saturday gaps were the
+        original cause of the no_topic failure mode)."""
         valid = []
+        saturdays_seen = []  # (date_str, pillar) for every Saturday entry
         for line in generated.splitlines():
             m = DATE_LINE_RE.match(line)
             if not m:
@@ -147,17 +150,29 @@ class CalendarPlannerAgent:
                 if line.startswith("###") or not line.strip():
                     valid.append(line)
                 continue
-            rest = m.group(2)
+            date_str, rest = m.groups()
             pillar = rest.split("|")[0].strip().upper()
             if pillar not in VALID_PILLARS:
                 logger.warning(f"Planner: invalid pillar in line, skipping: {line!r}")
                 continue
+            try:
+                dt = datetime.strptime(date_str, "%Y-%m-%d")
+            except ValueError:
+                continue
+            if dt.weekday() == 5:  # Saturday
+                saturdays_seen.append((date_str, pillar))
             valid.append(line)
         valid_dated = sum(1 for line in valid if DATE_LINE_RE.match(line))
         if valid_dated < expected_min_lines:
             logger.warning(
                 f"Planner output has only {valid_dated} valid dated lines, "
                 f"need ≥{expected_min_lines} — rejecting"
+            )
+            return None
+        non_recap_sats = [d for d, p in saturdays_seen if p != "RECAP"]
+        if non_recap_sats:
+            logger.warning(
+                f"Planner output has Saturday(s) without RECAP: {non_recap_sats} — rejecting"
             )
             return None
         return "\n".join(valid).strip()
@@ -188,8 +203,8 @@ class CalendarPlannerAgent:
             if not raw or raw.startswith("[Error"):
                 logger.error("Planner LLM failed")
                 return None
-            # Require at least 4 dated lines per week (planner can skip weak days)
-            cleaned = self._validate(raw, expected_min_lines=num_weeks * 4)
+            # Require Mon–Sat per week (6 lines) so Saturday RECAP is never missed.
+            cleaned = self._validate(raw, expected_min_lines=num_weeks * 6)
             if cleaned:
                 return cleaned
             logger.warning(f"Planner attempt {attempt} failed validation, retrying...")

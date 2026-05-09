@@ -103,9 +103,36 @@ def main(date: str = None, dry_run: bool = False,
         return {"status": "error", "reason": "calendar_unreadable"}
 
     topic = CalendarParser(raw).get_topic(target)
+
+    # Self-healing: missing topic should not kill the run.
+    # Saturday → RECAP fallback (no LLM cost). Mon–Fri → auto-extend + retry.
     if not topic:
-        logger.error(f"❌ No topic for {target.strftime('%Y-%m-%d')}")
-        return {"status": "error", "reason": "no_topic"}
+        date_str = target.strftime("%Y-%m-%d")
+        if target.weekday() == 5:  # Saturday
+            week_num = target.isocalendar().week
+            logger.warning(f"⚠️ No topic for {date_str} (Saturday) — defaulting to RECAP")
+            topic = {
+                "pillar": "RECAP",
+                "topic": f"สรุปสัปดาห์ที่ {week_num}",
+                "industry": "General",
+                "keywords": ["recap"],
+                "cluster": "General",
+                "level": 1,
+                "date": target,
+            }
+        elif not dry_run:
+            logger.warning(f"⚠️ No topic for {date_str} — auto-extending calendar")
+            try:
+                extended = CalendarPlannerAgent(gemini, drive, s).force_extend(raw)
+            except Exception as e:
+                logger.error(f"Auto-extend failed: {e}")
+                extended = False
+            if extended:
+                raw = drive.download_file(s.CALENDAR_FILE_ID)
+                topic = CalendarParser(raw).get_topic(target) if raw else None
+        if not topic:
+            logger.error(f"❌ No topic for {target.strftime('%Y-%m-%d')}")
+            return {"status": "error", "reason": "no_topic"}
     logger.info(f"📌 [{topic['pillar']}] {topic['topic']} | {topic.get('industry')}")
 
     if topic["pillar"] == "RECAP":
