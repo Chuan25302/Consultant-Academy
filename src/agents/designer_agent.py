@@ -5,6 +5,7 @@ Converts Markdown → professional Thai HTML email with INLINE styles
 Markdown rendering uses the python-markdown library (battle-tested);
 glossary + Consultant Move boxes are added by post-processing the HTML.
 """
+import base64
 import logging
 import re
 
@@ -41,6 +42,13 @@ CMOVE_RE = re.compile(
     r'<h2>(?:\d+\.\s*)?Consultant Move</h2>(.*?)(?=<h2|$)',
     flags=re.DOTALL | re.IGNORECASE,
 )
+# Knowledge Capture section gets the same callout treatment as Consultant
+# Move but in an amber color scheme so it reads as "highlight to remember"
+# rather than "go do this".
+KCAPTURE_RE = re.compile(
+    r'<h2>(?:\d+\.\s*)?Knowledge Capture</h2>(.*?)(?=<h2|$)',
+    flags=re.DOTALL | re.IGNORECASE,
+)
 # Inline format (legacy): "📖 ศัพท์น่ารู้: A = ... | B = ..."
 GLOSSARY_INLINE_RE = re.compile(
     r'<p>(📖\s*ศัพท์น่ารู้:.+?)</p>',
@@ -69,7 +77,14 @@ class DesignerAgent:
 
     @staticmethod
     def create_email(content: str, metadata: dict,
-                     related: list[dict] | None = None) -> str:
+                     image_bytes: bytes | None = None) -> str:
+        """Render daily Knowledge Sharing email. The related-articles
+        block is appended to `content` upstream by IndexBuilder, so the
+        body markdown owns it and the footer just carries the mission.
+
+        When `image_bytes` is supplied, the infographic is embedded as
+        a base64 data URI right after the header — works in all major
+        email clients without depending on Drive sharing rules."""
         pillar   = metadata.get("pillar", "TECHNICAL")
         topic    = metadata.get("topic", "Untitled")
         date     = metadata.get("date") or now_bangkok()
@@ -90,9 +105,10 @@ class DesignerAgent:
             f'<span class="badge">L{level}</span>'
         ) if level else ""
 
-        footer_links = DesignerAgent._render_footer_links(related, color)
-        preheader    = DesignerAgent._extract_tldr(content) or topic
-        read_min     = DesignerAgent._reading_minutes(content)
+        hero_image = DesignerAgent._render_hero_image(image_bytes, topic)
+
+        preheader = DesignerAgent._extract_tldr(content) or topic
+        read_min  = DesignerAgent._reading_minutes(content)
 
         raw = f"""<!DOCTYPE html>
 <html lang="th">
@@ -108,24 +124,29 @@ body{{font-family:'Sarabun','Segoe UI',sans-serif;background:#F5F5F5;color:#333;
 .hdr h2{{font-size:22px;font-weight:700;margin:6px 0;line-height:1.4;color:#fff}}
 .meta{{font-size:12px;opacity:0.85;margin-top:4px;color:#fff}}
 .bd{{padding:28px 24px}}
-.bd h2{{color:{color};font-size:18px;border-left:4px solid {color};padding-left:10px;margin:24px 0 10px}}
-.bd h3{{color:{color};font-size:15px;margin:18px 0 8px}}
-.bd p{{margin:0 0 14px;font-size:14px}}
+.bd h2{{color:{color};font-size:20px;border-left:4px solid {color};padding-left:10px;margin:24px 0 10px}}
+.bd h3{{color:{color};font-size:17px;margin:18px 0 8px}}
+.bd p{{margin:0 0 14px;font-size:16px}}
 .bd ul{{margin:8px 0 14px 20px;padding:0}}
-.bd li{{margin:6px 0;font-size:14px}}
+.bd li{{margin:6px 0;font-size:16px}}
 .bd strong{{color:{color}}}
 .cmove{{background:#E8F5E9;border:1px solid #A5D6A7;padding:16px;margin:20px 0;border-radius:6px}}
 .cmove h3{{color:#2E7D32;margin:0 0 8px}}
-.bd blockquote{{margin:14px 0;padding:10px 16px;border-left:3px solid {color};background:rgba({rgba},0.05);color:#555;font-style:italic;font-size:14px}}
+.kcapture{{background:#FFF8E1;border:1px solid #FFD54F;padding:16px;margin:20px 0;border-radius:6px}}
+.kcapture h3{{color:#F57F17;margin:0 0 8px;font-size:17px}}
+.kcapture strong{{color:#E65100}}
+.bd blockquote{{margin:14px 0;padding:10px 16px;border-left:3px solid {color};background:rgba({rgba},0.05);color:#555;font-style:italic;font-size:16px}}
 .bd blockquote p{{margin:0}}
-.glossary{{background:#F5F5F5;padding:14px 18px;margin-top:24px;border-radius:6px;font-size:13px;color:#555;border-top:3px solid {color}}}
-.glossary strong{{color:{color};font-size:13px;display:block;margin-bottom:8px}}
+.glossary{{background:#F5F5F5;padding:16px 20px;margin-top:24px;border-radius:6px;font-size:16px;color:#555;border-top:3px solid {color}}}
+.glossary strong{{color:{color};font-size:16px;display:block;margin-bottom:10px}}
 .glossary-list{{margin:0;padding:0 0 0 18px;list-style:disc}}
-.glossary-list li{{margin:4px 0;color:#555;font-size:13px}}
-.ftr{{background:#ECEFF1;padding:16px 24px;font-size:11px;color:#546E7A;border-top:1px solid #ddd}}
+.glossary-list li{{margin:6px 0;color:#555;font-size:16px}}
+.ftr{{background:#ECEFF1;padding:16px 24px;font-size:12px;color:#546E7A;border-top:1px solid #ddd}}
 .ftr a{{color:{color};text-decoration:none;margin-right:12px}}
 .ftr-mission{{margin-top:12px;padding-top:10px;border-top:1px solid #cfd8dc;color:#546E7A;font-style:italic}}
 .preheader{{display:none!important;visibility:hidden;opacity:0;color:transparent;height:0;width:0;font-size:1px;line-height:1px;mso-hide:all;overflow:hidden}}
+.hero-img{{margin:0;padding:0;line-height:0;background:#FAFAFA;border-bottom:1px solid #E0E0E0}}
+.hero-img img{{display:block;width:100%;height:auto;max-width:100%}}
 @media(max-width:620px){{.bd,.hdr{{padding:20px 16px}}}}
 </style>
 </head>
@@ -137,10 +158,9 @@ body{{font-family:'Sarabun','Segoe UI',sans-serif;background:#F5F5F5;color:#333;
     <h2>{topic}</h2>
     <div class="meta">PTT NGR ESP · Consultant Academy · {date_th} · อ่าน {read_min} นาที</div>
   </div>
+  {hero_image}
   <div class="bd">{body}</div>
   <div class="ftr">
-    <strong>📚 อ่านเพิ่มในชุดเดียวกัน</strong><br>
-    {footer_links}
     <div class="ftr-mission">PTT NGR ESP · Consultant Academy — ยกระดับทีมจากผู้เชี่ยวชาญ สู่ Energy Consultant ที่ลูกค้าไว้วางใจ</div>
   </div>
 </div>
@@ -160,6 +180,10 @@ body{{font-family:'Sarabun','Segoe UI',sans-serif;background:#F5F5F5;color:#333;
         html = md_lib.markdown(md, extensions=["sane_lists", "extra", "nl2br"])
         html = CMOVE_RE.sub(
             r'<div class="cmove"><h3>💬 Consultant Move</h3>\1</div>',
+            html,
+        )
+        html = KCAPTURE_RE.sub(
+            r'<div class="kcapture"><h3>🧠 Knowledge Capture</h3>\1</div>',
             html,
         )
         html = GLOSSARY_LIST_RE.sub(
@@ -216,15 +240,15 @@ body{{font-family:'Sarabun','Segoe UI',sans-serif;background:#F5F5F5;color:#333;
 .timeline .dname{{font-weight:700;color:{color};display:block;margin-bottom:2px}}
 .timeline .dtopic{{display:block;font-size:11px;color:#37474F;line-height:1.3;margin-top:2px}}
 .bd{{padding:28px 24px}}
-.bd h2{{color:{color};font-size:18px;border-left:4px solid {color};padding-left:10px;margin:24px 0 10px}}
-.bd h3{{color:{color};font-size:15px;margin:18px 0 8px}}
-.bd p{{margin:0 0 14px;font-size:14px}}
+.bd h2{{color:{color};font-size:20px;border-left:4px solid {color};padding-left:10px;margin:24px 0 10px}}
+.bd h3{{color:{color};font-size:17px;margin:18px 0 8px}}
+.bd p{{margin:0 0 14px;font-size:16px}}
 .bd ul{{margin:8px 0 14px 20px;padding:0}}
-.bd li{{margin:6px 0;font-size:14px}}
+.bd li{{margin:6px 0;font-size:16px}}
 .bd strong{{color:{color}}}
-.bd blockquote{{margin:14px 0;padding:10px 16px;border-left:3px solid {color};background:rgba({rgba},0.05);color:#555;font-style:italic;font-size:14px}}
+.bd blockquote{{margin:14px 0;padding:10px 16px;border-left:3px solid {color};background:rgba({rgba},0.05);color:#555;font-style:italic;font-size:16px}}
 .bd blockquote p{{margin:0}}
-.ftr{{background:#ECEFF1;padding:16px 24px;font-size:11px;color:#546E7A;border-top:1px solid #ddd}}
+.ftr{{background:#ECEFF1;padding:16px 24px;font-size:12px;color:#546E7A;border-top:1px solid #ddd}}
 .ftr-mission{{margin-top:8px;color:#546E7A;font-style:italic}}
 .preheader{{display:none!important;visibility:hidden;opacity:0;color:transparent;height:0;width:0;font-size:1px;line-height:1px;mso-hide:all;overflow:hidden}}
 @media(max-width:680px){{.bd,.hdr{{padding:20px 16px}}.timeline{{padding:10px 8px}}.timeline .day{{padding:4px 2px;font-size:10px}}}}
@@ -275,6 +299,22 @@ body{{font-family:'Sarabun','Segoe UI',sans-serif;background:#F5F5F5;color:#333;
         return "".join(cells)
 
     @staticmethod
+    def _render_hero_image(image_bytes: bytes | None, alt_text: str) -> str:
+        """Embed infographic as a base64 PNG data URI. Renders inline in
+        Gmail/Outlook/Apple Mail without relying on external hosting or
+        Drive permissions. Empty string when no image was generated."""
+        if not image_bytes:
+            return ""
+        b64 = base64.b64encode(image_bytes).decode("ascii")
+        # Escape any double-quotes in alt to keep the attribute valid.
+        alt = (alt_text or "Infographic").replace('"', "'")
+        return (
+            f'<div class="hero-img">'
+            f'<img src="data:image/png;base64,{b64}" alt="{alt}">'
+            f'</div>'
+        )
+
+    @staticmethod
     def _extract_tldr(md: str) -> str:
         """Pull plain-text content of the `## 💡 ประเด็นวันนี้` section so
         we can show it in the inbox preheader. Falls back to empty string
@@ -298,27 +338,3 @@ body{{font-family:'Sarabun','Segoe UI',sans-serif;background:#F5F5F5;color:#333;
         chars = sum(1 for c in plain if not c.isspace())
         return max(1, round(chars / 500))
 
-    @staticmethod
-    def _render_footer_links(related: list[dict] | None, color: str) -> str:
-        """Render related-article links into the footer. Falls back to a
-        single 'Master Index' pointer when no related items are available
-        so the footer is never empty."""
-        style = f"color:{color};text-decoration:none;display:block;margin:4px 0"
-        if not related:
-            return (
-                f'<a href="#" style="{style}">'
-                'ดู Master Index ของ Knowledge Base</a>'
-            )
-        items = []
-        for a in related:
-            file_id = a.get("id")
-            title = a.get("title", "")
-            level = a.get("level", "")
-            date = a.get("date", "")
-            url = (
-                f"https://drive.google.com/file/d/{file_id}/view"
-                if file_id else "#"
-            )
-            label = f"[L{level}] {title} — {date}" if level else title
-            items.append(f'<a href="{url}" style="{style}">{label}</a>')
-        return "\n    ".join(items)

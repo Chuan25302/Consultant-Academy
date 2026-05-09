@@ -10,7 +10,16 @@ Output format:
             (Level 1 articles in date order across all 4 pillars)
         ## 📂 ทั้งหมด แยกตาม Pillar
             (grouped: pillar → cluster → article)
+
+Also maintains __summaries.json at the KB root: a small dict mapping
+each article's docx file ID to its TL;DR snippet and matching Email
+Archive HTML file ID. Used by find_related() so the daily "อ่านเพิ่ม"
+section in each email can show:
+  - a 1-line summary under each related title (no need to click)
+  - a link that opens the browser-renderable HTML (Email Archive)
+    instead of the DOCX (which on mobile bounces to the Drive app).
 """
+import json
 import logging
 import re
 from datetime import datetime
@@ -18,6 +27,7 @@ from datetime import datetime
 logger = logging.getLogger(__name__)
 
 MASTER_INDEX_FILENAME = "00-Master-Index.md"
+SUMMARIES_FILENAME = "__summaries.json"
 
 PILLAR_LABELS = {
     "01-Technical-Depth":         "TECHNICAL — เนื้อหาเทคนิค",
@@ -35,6 +45,10 @@ NEW_FILENAME_RE = re.compile(
 # 2024-05-06 — TECHNICAL — Topic.docx (legacy)
 OLD_FILENAME_RE = re.compile(
     r"^(\d{4}-\d{2}-\d{2})\s+[—-]\s+\w+\s+[—-]\s+(.+?)\.[a-z]+$"
+)
+# [Email] 2024-05-06 Topic.html (in Email Archives folder)
+ARCHIVE_FILENAME_RE = re.compile(
+    r"^\[Email\]\s+(\d{4}-\d{2}-\d{2})\s+(.+?)\.html$"
 )
 
 
@@ -57,6 +71,107 @@ class IndexBuilder:
         self.drive = drive
         self.settings = settings
         self._articles_cache: list[dict] | None = None
+        self._summaries_cache: dict | None = None
+        self._archive_index_cache: dict | None = None
+
+    def _summaries_file_id(self) -> str | None:
+        """Find existing __summaries.json in KB root, or None if missing."""
+        try:
+            res = self.drive._list(  # noqa: SLF001
+                f"name='{SUMMARIES_FILENAME}' and "
+                f"'{self.settings.FOLDER_KNOWLEDGE_BASE}' in parents and "
+                f"trashed=false",
+                fields="files(id)",
+                page_size=1,
+            )
+            if not isinstance(res, dict):
+                return None
+            files = res.get("files", [])
+            if not isinstance(files, list) or not files:
+                return None
+            entry = files[0]
+            return entry["id"] if isinstance(entry, dict) else None
+        except Exception as e:
+            logger.warning(f"Could not query summaries file: {e}")
+            return None
+
+    def _load_summaries(self) -> dict:
+        """Read __summaries.json from KB folder root. Returns empty dict
+        when missing or unreadable — find_related stays robust either way."""
+        if self._summaries_cache is not None:
+            return self._summaries_cache
+        file_id = self._summaries_file_id()
+        if not file_id:
+            self._summaries_cache = {}
+            return {}
+        try:
+            raw = self.drive.download_file(file_id)
+        except Exception as e:
+            logger.warning(f"download summaries failed: {e}")
+            self._summaries_cache = {}
+            return {}
+        if not isinstance(raw, str) or not raw:
+            self._summaries_cache = {}
+            return {}
+        try:
+            data = json.loads(raw)
+            self._summaries_cache = data if isinstance(data, dict) else {}
+        except (json.JSONDecodeError, TypeError):
+            logger.warning("__summaries.json malformed — treating as empty")
+            self._summaries_cache = {}
+        return self._summaries_cache
+
+    def _collect_email_archive_ids(self) -> dict[tuple[str, str], str]:
+        """Walk Email Archives → return {(date, title): html_file_id}.
+        Lets us link the related section to the browser-renderable HTML
+        instead of the DOCX (which mobile clients open in Drive app)."""
+        if self._archive_index_cache is not None:
+            return self._archive_index_cache
+        archives: dict[tuple[str, str], str] = {}
+        archive_root = getattr(self.settings, "FOLDER_EMAIL_ARCHIVES", None)
+        if not isinstance(archive_root, str) or not archive_root:
+            self._archive_index_cache = archives
+            return archives
+        try:
+            files = self.drive.walk(archive_root)
+        except Exception as e:
+            logger.warning(f"Email Archives walk failed: {e}")
+            self._archive_index_cache = archives
+            return archives
+        if not isinstance(files, list):
+            self._archive_index_cache = archives
+            return archives
+        for f in files:
+            if not isinstance(f, dict):
+                continue
+            name = f.get("name", "")
+            if not isinstance(name, str):
+                continue
+            m = ARCHIVE_FILENAME_RE.match(name)
+            if m:
+                archives[(m.group(1), m.group(2))] = f.get("id", "")
+        self._archive_index_cache = archives
+        return archives
+
+    def update_summary(self, docx_id: str, tldr: str,
+                       html_id: str | None = None) -> str | None:
+        """Append/update an entry in __summaries.json. Called by main.py
+        after each daily upload so future runs can show this article in
+        their related section with a real summary + browser link."""
+        if not docx_id:
+            return None
+        summaries = self._load_summaries()
+        summaries[docx_id] = {
+            "tldr": tldr or "",
+            "html_id": html_id or "",
+        }
+        self._summaries_cache = summaries  # keep in-memory copy fresh
+        return self.drive.update_or_create(
+            filename=SUMMARIES_FILENAME,
+            content=json.dumps(summaries, ensure_ascii=False, indent=2),
+            folder_id=self.settings.FOLDER_KNOWLEDGE_BASE,
+            mime_type="application/json",
+        )
 
     def collect_articles(self) -> list[dict]:
         """Walk KB and parse every article filename we recognize.
@@ -88,7 +203,11 @@ class IndexBuilder:
 
     def find_related(self, current_topic: dict, limit: int = 3) -> list[dict]:
         """Return up to `limit` articles in the same cluster as the current
-        topic (excluding the current one itself). Sorted most-recent first."""
+        topic (excluding the current one itself). Sorted most-recent first.
+        Each entry is enriched with `tldr` (1-line summary) and `html_id`
+        (Email Archive HTML file_id) when available — both come from the
+        __summaries.json index so older articles missing summaries simply
+        fall back to title-only display."""
         cluster = current_topic.get("cluster", "General")
         title = current_topic.get("topic", "").lower()
         articles = self.collect_articles()
@@ -96,18 +215,42 @@ class IndexBuilder:
             a for a in articles
             if a["cluster"] == cluster and a["title"].lower() != title
         ]
-        return sorted(same_cluster, key=lambda a: a["date"], reverse=True)[:limit]
+        ranked = sorted(same_cluster, key=lambda a: a["date"], reverse=True)[:limit]
+        # Enrich without forcing extra Drive calls when the picks list
+        # is empty (dry-run path).
+        if ranked:
+            summaries = self._load_summaries()
+            archives = self._collect_email_archive_ids()
+            for a in ranked:
+                entry = summaries.get(a["id"], {})
+                a["tldr"] = entry.get("tldr", "")
+                a["html_id"] = (
+                    entry.get("html_id")
+                    or archives.get((a["date"], a["title"]))
+                    or ""
+                )
+        return ranked
 
     @staticmethod
     def render_related_section(related: list[dict]) -> str:
-        """Markdown snippet to append at the end of an article."""
+        """Markdown snippet to append at the end of an article. Renders
+        each related item as: bold title + level/date metadata, with the
+        TL;DR on the next line when available. Link prefers the Email
+        Archive HTML (browser-friendly) and falls back to the DOCX when
+        no HTML is indexed yet."""
         if not related:
             return ""
         lines = ["", "## 📚 อ่านเพิ่มในชุดเดียวกัน", ""]
         for a in related:
-            link = _drive_link(a["id"])
-            lines.append(f"- [L{a['level']}] [{a['title']}]({link}) — {a['date']}")
-        return "\n".join(lines)
+            target_id = a.get("html_id") or a["id"]
+            link = _drive_link(target_id)
+            lines.append(
+                f"**[L{a['level']}]** [{a['title']}]({link}) — {a['date']}"
+            )
+            if a.get("tldr"):
+                lines.append(a["tldr"])
+            lines.append("")  # blank line separates items
+        return "\n".join(lines).rstrip() + "\n"
 
     def render(self, articles: list[dict]) -> str:
         if not articles:

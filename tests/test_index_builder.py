@@ -186,6 +186,29 @@ def test_render_related_section_links_articles():
     ]
     md = IndexBuilder.render_related_section(related)
     assert "📚 อ่านเพิ่ม" in md
-    assert "[L1] [Chiller 101](https://drive.google.com/file/d/abc/view)" in md
-    assert "[L2] [Cooling Tower](https://drive.google.com/file/d/def/view)" in md
+    assert "**[L1]** [Chiller 101](https://drive.google.com/file/d/abc/view)" in md
+    assert "**[L2]** [Cooling Tower](https://drive.google.com/file/d/def/view)" in md
     assert "2024-05-06" in md
+
+
+def test_render_related_section_prefers_html_id_over_docx_id():
+    """When the related article has an html_id (Email Archive lookup),
+    the link should point at it instead of the DOCX so readers open the
+    browser-renderable HTML preview."""
+    related = [
+        {"level": 1, "date": "2024-05-06", "title": "Chiller 101",
+         "id": "docx_id", "html_id": "html_id"},
+    ]
+    md = IndexBuilder.render_related_section(related)
+    assert "https://drive.google.com/file/d/html_id/view" in md
+    assert "https://drive.google.com/file/d/docx_id/view" not in md
+
+
+def test_render_related_section_includes_summary_line():
+    """When a TL;DR is available it should appear under the title."""
+    related = [
+        {"level": 1, "date": "2024-05-06", "title": "Chiller 101",
+         "id": "abc", "tldr": "เลือก chiller จาก IPLV ไม่ใช่ COP"},
+    ]
+    md = IndexBuilder.render_related_section(related)
+    assert "เลือก chiller จาก IPLV ไม่ใช่ COP" in md

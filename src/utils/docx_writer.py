@@ -9,7 +9,7 @@ import re
 
 from docx import Document
 from docx.enum.text import WD_ALIGN_PARAGRAPH
-from docx.shared import Pt, RGBColor
+from docx.shared import Inches, Pt, RGBColor
 
 # Hex color per pillar — mirrors PILLAR_CONFIG in designer_agent.py.
 # Duplicated here (rather than imported) to keep docx_writer free of the
@@ -29,7 +29,8 @@ DEFAULT_HEADING_COLOR = RGBColor(0x21, 0x21, 0x21)
 def markdown_to_docx_bytes(md: str, title: str = "",
                            pillar: str | None = None,
                            subtitle: str | None = None,
-                           date: str | None = None) -> bytes:
+                           date: str | None = None,
+                           image_bytes: bytes | None = None) -> bytes:
     doc = Document()
     color = PILLAR_COLOR.get((pillar or "").upper(), DEFAULT_HEADING_COLOR)
 
@@ -64,6 +65,18 @@ def markdown_to_docx_bytes(md: str, title: str = "",
             run = d.add_run(date)
             run.font.size = Pt(10)
             run.font.color.rgb = RGBColor(0x77, 0x77, 0x77)
+
+        # Hero infographic right under the cover, before body content.
+        # python-docx fits the image to the page width minus margins.
+        if image_bytes:
+            try:
+                pic = doc.add_paragraph()
+                pic.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                run = pic.add_run()
+                run.add_picture(io.BytesIO(image_bytes), width=Inches(6.0))
+            except Exception:
+                # Bad image bytes shouldn't fail the whole DOCX render.
+                pass
 
         doc.add_paragraph("")  # spacer
 

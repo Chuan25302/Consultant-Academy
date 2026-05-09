@@ -27,6 +27,10 @@ class Settings:
     FOLDER_EMAIL_ARCHIVES: str = os.getenv("FOLDER_EMAIL_ARCHIVES", "")
     FOLDER_KNOWLEDGE_BASE: str = os.getenv("FOLDER_KNOWLEDGE_BASE", "")
     FOLDER_PROGRAM_MGMT: str = os.getenv("FOLDER_PROGRAM_MGMT", "")
+    # Optional: Drive folder for AI-generated infographics. When set,
+    # ImageAgent uploads each rendered PNG here organized by month.
+    # Leave empty to disable image generation entirely.
+    FOLDER_IMAGES: str = os.getenv("FOLDER_IMAGES", "")
 
     SLACK_WEBHOOK_URL: str = os.getenv("SLACK_WEBHOOK_URL", "")
 
@@ -45,11 +49,12 @@ class Settings:
         "research":     2500,
         "expert":       3500,
         "industry":     2000,
-        "factchecker":  4000,
-        "translator":   4000,
-        "editor":       4000,
+        "factchecker":  5000,  # rewrites translator output (now 5 sections + KC)
+        "translator":   5000,  # +1 section (Knowledge Capture) over base 4000
+        "editor":       5000,
         "recap":        2000,
         "planner":      6000,
+        "image_brief":   600,  # compresses article → 200-word brief for Imagen
     }
 
     RESEARCH_CACHE_TTL_DAYS: int = 7

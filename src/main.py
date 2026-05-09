@@ -25,6 +25,7 @@ from src.agents.designer_agent import DesignerAgent
 from src.agents.editor_agent import EditorAgent
 from src.agents.expert_agent import ExpertAgent
 from src.agents.factchecker_agent import FactCheckerAgent
+from src.agents.image_agent import ImageAgent
 from src.agents.industry_agent import IndustryAgent
 from src.agents.planner_agent import CalendarPlannerAgent
 from src.agents.recap_agent import RecapAgent
@@ -179,7 +180,13 @@ def main(date: str = None, dry_run: bool = False,
     related = index.find_related(topic, limit=3) if not dry_run else []
     final_md = edited + IndexBuilder.render_related_section(related)
 
-    email_html = DesignerAgent.create_email(final_md, topic, related=related)
+    # Optional infographic (gated on FOLDER_IMAGES + Vertex AI). Failures
+    # are non-blocking — if image gen errors out we still send the email.
+    image_bytes = None
+    if s.FOLDER_IMAGES and s.use_vertex:
+        image_bytes = ImageAgent(s, gemini).generate(final_md, topic)
+
+    email_html = DesignerAgent.create_email(final_md, topic, image_bytes=image_bytes)
 
     date_str   = topic["date"].strftime("%Y-%m-%d")
     month_path = topic["date"].strftime("%Y/%B").lower()
@@ -196,12 +203,22 @@ def main(date: str = None, dry_run: bool = False,
     if dry_run:
         logger.info(f"🧪 [dry-run] would upload: {email_filename}")
         logger.info(f"🧪 [dry-run] would upload: {pillar_dir}/{cluster}/{docx_filename}")
+        if image_bytes:
+            logger.info(f"🧪 [dry-run] would upload image ({len(image_bytes)//1024} KB)")
         logger.info("🧪 [dry-run] would rebuild Knowledge Base master index")
         logger.info(f"🧪 [dry-run] would send email: {subject}")
     else:
+        # Upload infographic first so the file is in Drive even if email
+        # delivery fails downstream.
+        if image_bytes and s.FOLDER_IMAGES:
+            img_folder = drive.get_or_create_folder(
+                f"Images/{month_path}", s.FOLDER_IMAGES)
+            img_filename = f"[Image] {date_str} {topic['topic'][:50]}.png"
+            drive.upload(img_filename, image_bytes, img_folder, "image/png")
+
         email_folder = drive.get_or_create_folder(
             f"Email Archives/{month_path}", s.FOLDER_EMAIL_ARCHIVES)
-        drive.upload(email_filename, email_html, email_folder, "text/html")
+        html_id = drive.upload(email_filename, email_html, email_folder, "text/html")
 
         kb_folder = drive.get_or_create_folder(
             f"{pillar_dir}/{cluster}", s.FOLDER_KNOWLEDGE_BASE)
@@ -217,8 +234,19 @@ def main(date: str = None, dry_run: bool = False,
             pillar=topic["pillar"],
             subtitle=docx_subtitle,
             date=docx_date,
+            image_bytes=image_bytes,
         )
-        drive.upload(docx_filename, docx_bytes, kb_folder, DOCX_MIME)
+        docx_id = drive.upload(docx_filename, docx_bytes, kb_folder, DOCX_MIME)
+
+        # Persist this article's TL;DR + Email Archive HTML id so future
+        # daily emails can show a real summary line under the related
+        # "อ่านเพิ่มในชุดเดียวกัน" link instead of a bare title.
+        if docx_id:
+            tldr = DesignerAgent._extract_tldr(final_md)
+            try:
+                index.update_summary(docx_id, tldr, html_id)
+            except Exception as e:
+                logger.warning(f"update_summary failed (non-blocking): {e}")
 
         logger.info("📚 Rebuilding Knowledge Base master index...")
         index.rebuild()

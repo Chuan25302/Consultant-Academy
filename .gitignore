@@ -24,6 +24,13 @@ venv/
 data/cost_log.jsonl
 data/research_cache/*.json
 
+# Image generation experiments (tools/test_image_gen.py output)
+test_images/
+
+# Local preview artifacts
+preview_email.html
+preview_email_new.html
+
 # OS / editors
 .DS_Store
 .idea/

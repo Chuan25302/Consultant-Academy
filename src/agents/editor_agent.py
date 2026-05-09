@@ -89,8 +89,8 @@ class EditorAgent:
                 "(เช่น บาท / kWh / % / ปี)"
             )
         word_count = len(md.split())
-        if word_count > 700:
-            issues.append(f"เนื้อหายาว {word_count} คำ ต้องการไม่เกิน 600")
+        if word_count > 800:
+            issues.append(f"เนื้อหายาว {word_count} คำ ต้องการไม่เกิน 700")
         # Anti-hallucination spot check (FactChecker should have cleaned this,
         # but Editor catches anything that slipped through).
         if SPECIFIC_COMPANY_RE.search(md):
