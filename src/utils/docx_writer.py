@@ -16,7 +16,7 @@ from docx.shared import Pt, RGBColor
 # email-rendering dependency chain (premailer, cssutils, markdown).
 PILLAR_COLOR = {
     "TECHNICAL":      RGBColor(0x0D, 0x47, 0xA1),
-    "INDUSTRY":       RGBColor(0xE6, 0x51, 0x00),
+    "INDUSTRY":       RGBColor(0xBF, 0x36, 0x0A),
     "FRAMEWORK":      RGBColor(0x1B, 0x5E, 0x20),
     "SOFTSKILL":      RGBColor(0x4A, 0x14, 0x8C),
     "COMPLIANCE":     RGBColor(0xB7, 0x1C, 0x1C),
