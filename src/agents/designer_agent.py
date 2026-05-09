@@ -77,14 +77,23 @@ class DesignerAgent:
 
     @staticmethod
     def create_email(content: str, metadata: dict,
-                     image_bytes: bytes | None = None) -> str:
+                     image_bytes: bytes | None = None,
+                     image_cid: str | None = None) -> str:
         """Render daily Knowledge Sharing email. The related-articles
         block is appended to `content` upstream by IndexBuilder, so the
         body markdown owns it and the footer just carries the mission.
 
-        When `image_bytes` is supplied, the infographic is embedded as
-        a base64 data URI right after the header — works in all major
-        email clients without depending on Drive sharing rules."""
+        Image embedding has two modes:
+          - `image_cid`: render <img src="cid:NAME"> — for SMTP delivery
+            where the same bytes are MIME-attached with that Content-ID.
+            Keeps the HTML lean and the email's attachment list shows
+            the file as a downloadable infographic.
+          - `image_bytes` only: embed as base64 data URI — used for the
+            Drive HTML archive so a recipient opening the archived
+            email later still sees the image without needing the MIME
+            attachment context.
+        Pass `image_cid` for the email body and `image_bytes` for the
+        archive copy from main.py."""
         pillar   = metadata.get("pillar", "TECHNICAL")
         topic    = metadata.get("topic", "Untitled")
         date     = metadata.get("date") or now_bangkok()
@@ -105,7 +114,9 @@ class DesignerAgent:
             f'<span class="badge">L{level}</span>'
         ) if level else ""
 
-        hero_image = DesignerAgent._render_hero_image(image_bytes, topic)
+        hero_image = DesignerAgent._render_hero_image(
+            image_bytes, topic, image_cid=image_cid,
+        )
 
         preheader = DesignerAgent._extract_tldr(content) or topic
         read_min  = DesignerAgent._reading_minutes(content)
@@ -299,18 +310,26 @@ body{{font-family:'Sarabun','Segoe UI',sans-serif;background:#F5F5F5;color:#333;
         return "".join(cells)
 
     @staticmethod
-    def _render_hero_image(image_bytes: bytes | None, alt_text: str) -> str:
-        """Embed infographic as a base64 PNG data URI. Renders inline in
-        Gmail/Outlook/Apple Mail without relying on external hosting or
-        Drive permissions. Empty string when no image was generated."""
-        if not image_bytes:
+    def _render_hero_image(image_bytes: bytes | None, alt_text: str,
+                           image_cid: str | None = None) -> str:
+        """Render the hero infographic block. Prefers a `cid:` reference
+        when one is provided (for SMTP-attached delivery); otherwise
+        falls back to a base64 data URI so the same renderer can also
+        produce the standalone Drive archive copy.
+
+        Returns empty string when nothing is available — daily run
+        keeps shipping without an image."""
+        if not image_cid and not image_bytes:
             return ""
-        b64 = base64.b64encode(image_bytes).decode("ascii")
-        # Escape any double-quotes in alt to keep the attribute valid.
         alt = (alt_text or "Infographic").replace('"', "'")
+        if image_cid:
+            src = f"cid:{image_cid}"
+        else:
+            b64 = base64.b64encode(image_bytes).decode("ascii")
+            src = f"data:image/png;base64,{b64}"
         return (
             f'<div class="hero-img">'
-            f'<img src="data:image/png;base64,{b64}" alt="{alt}">'
+            f'<img src="{src}" alt="{alt}">'
             f'</div>'
         )
 

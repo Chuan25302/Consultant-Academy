@@ -2,72 +2,56 @@
 Image Agent — generates an executive consulting infographic for each
 daily article using Vertex AI's Gemini 2.5 Flash Image model.
 
-Two-step flow:
-  1. Brief generator (Gemini Flash text model) compresses the full
-     article into ~300-word brief that lists the hard facts (numbers,
-     ranges, named standards). The brief is the single source of
-     truth the image model must respect — no fabricated numbers.
-  2. Gemini 2.5 Flash Image renders the infographic from the brief
-     plus the full McKinsey-style style template (kept verbatim from
-     the original prompt brief because Gemini Image accepts ~32k
-     tokens, far above Imagen 4's 480-token cap).
+The model receives the full Thai article plus the McKinsey/BCG-style
+visual brief verbatim — Gemini Flash Image's ~32k-token context easily
+fits both, so we no longer need a separate Gemini-text brief generator
+to summarize first. The image model translates Thai facts to English
+while rendering, and the same brief continues to constrain it from
+inventing numbers.
+
+Model is overridable via the IMAGE_MODEL env var so we can A/B with
+imagen-4.0-* etc. without code changes.
 
 Output is non-blocking: any failure (Vertex not configured, API error,
 safety filter trip) returns None and the daily run continues without
 an image rather than miss the email entirely.
 
-Cost: ~$0.039/image (Gemini 2.5 Flash Image) plus a tiny brief cost.
+Cost: ~$0.039/image (Gemini 2.5 Flash Image, single call per day).
 """
 import logging
+import os
 
 from google import genai
 from google.genai import types
 from google.oauth2 import service_account
 
 from src.config.settings import Settings
-from src.integrations.gemini_client import GeminiClient
 
 logger = logging.getLogger(__name__)
 
 VERTEX_SCOPES = ["https://www.googleapis.com/auth/cloud-platform"]
-IMAGE_MODEL = "gemini-2.5-flash-image"
+# Default to Gemini Flash Image: it accepts ~32k tokens of prompt, which
+# lets us send the full McKinsey-style brief verbatim. Imagen 4 has the
+# better text rendering reputation but a hard ~480-token cap that
+# truncates the layout instructions before they get a chance to apply.
+# Override via IMAGE_MODEL env to A/B with imagen-4.0-* etc.
+DEFAULT_MODEL = "gemini-2.5-flash-image"
 
-# Brief generator — extracts hard facts, no fabrication. Output goes
-# straight into the image prompt as the {brief} block.
-BRIEF_PROMPT = """สกัดข้อเท็จจริงสำคัญที่สุดจากบทความที่ปรึกษานี้
-ให้กลายเป็น visual brief สั้นๆ (≤300 คำ) สำหรับใช้สร้าง infographic
-
-ใส่:
-- English headline 1 บรรทัด (คล้าย "Stop Selling Price. Start Selling 10-Year Value.")
-- 3 KPI numbers (ใช้ตัวเลขจาก article เท่านั้น ห้ามแต่ง)
-- Problem 2-3 จุด, Hidden Cost 2-3 จุด, Solution 2-3 จุด, Business Impact 2-3 จุด
-- Consultant Insight (ประโยคไทยสั้นๆ จาก article)
-- Key Formula หรือ Rule of Thumb (ถ้ามี)
-
-ห้ามแต่งตัวเลขที่ไม่อยู่ใน article — ถ้า article ใช้ range "25-30%"
-brief ต้องใช้ "25-30%" ไม่ใช่ "27%"
-
-Article:
-{article}
-
-ตอบเฉพาะ brief text ไม่ใส่ heading หรือ label"""
-
-# Image prompt — full McKinsey/BCG style brief preserved verbatim from
-# the original spec. Gemini 2.5 Flash Image accepts the long form.
+# Image prompt — kept in the user's original McKinsey/BCG framing,
+# but the Output Structure is spelled out section by section so the
+# model treats it as an executive briefing card (information-dense
+# but scannable), not a sparse marketing slide. The full Thai article
+# is appended below; the image model translates Thai facts into
+# English while rendering. Image models handle Latin script far more
+# reliably than Thai, and the full Thai version lives in the email
+# body where browser rendering is perfect.
 IMAGE_PROMPT = """Transform this industrial consulting article into a premium executive consulting infographic.
-
-ARTICLE FACTS (use ONLY numbers and statements from below — do NOT invent any percentages, costs, or timelines):
-TOPIC: {topic}
-INDUSTRY: {industry}
-PILLAR: {pillar}
-
-{brief}
 
 Style:
 - McKinsey + BCG style business infographic
 - Clean and modern consulting presentation
-- Dark blue (#0D2F5C) + white + subtle energy green (#1B5E20) palette
-- Balanced information density
+- Dark blue + white + subtle energy green palette
+- Balanced information density (executive briefing card, NOT a sparse marketing slide)
 - Strong visual hierarchy
 - Executive-friendly and insight-rich
 
@@ -78,70 +62,126 @@ Visual Direction:
 - Premium industrial / energy consulting aesthetic
 - Design it like a premium consulting slide, not a marketing poster
 - Clear section separation
-- Combination of business visuals and concise explanations
+- Combination of business visuals and concise explanations under each visual
 - Modern dashboard-like layout
-- Professional sans-serif typography
+- Professional typography
 - Balanced whitespace with structured information flow
-- Vertical 3:4 portrait orientation (suitable for email embedding)
 
 Use layered information hierarchy:
-- Level 1: headline + KPI
-- Level 2: chart + business impact
-- Level 3: supporting consultant insight
+- Level 1: headline + 3 KPI badges
+- Level 2: 4-step strategy flow + comparison chart + business case summary
+- Level 3: consultant insight quote + key formulas / takeaways
 
 Business Storytelling Flow:
-Problem → Hidden Cost → Solution → Business Impact
+Problem -> Hidden Cost -> Solution -> Business Impact
 
-Output Structure:
-1. Strong business headline (English, 1-2 lines)
-2. One hero industrial visual (right side or top of hero)
-3. Three key KPI metrics (use exact numbers from article facts)
-4. One comparison chart Old vs New (use only numbers from article facts)
-5. One business case summary (table with article facts)
-6. One consultant insight / takeaway (Thai quote box)
-7. Small supporting annotations or micro-insights — Key Formula,
-   Rule of Thumb, Downtime Cost Trick
+Output Structure (every section below MUST appear in the final image with real content drawn from the article — not just headings, not blank placeholders):
+
+1. HERO PANEL
+   - Bold English headline (one strong sentence) on a navy background
+   - One short English subtitle line beneath it
+   - One realistic industrial photo on the right (steam pipes, cooling tower, valves)
+
+2. KPI ROW (three big metric badges side-by-side)
+   - Each badge: a large number / range + a 2-3 word English label + a 1-line English context note
+     (e.g., "≈ 1M baht / month", "vs 15+ year old system", "investment: 25M baht")
+
+3. FOUR-STEP STRATEGY FLOW with arrows connecting the steps
+   - Step titles in English uppercase: PROBLEM, HIDDEN COST, SOLUTION, BUSINESS IMPACT
+   - Under each step title, place 2-3 short English bullet sentences (5-9 words each)
+     drawn directly from the article's facts for that step
+   - A small flat-style icon in green sits beside each step title
+
+4. COMPARISON CHART
+   - Stacked-bar titled "10-YEAR TOTAL COST OF OWNERSHIP"
+   - Two bars: "Old System" (taller, mostly navy) vs "New Efficient System" (shorter, mostly green)
+   - Stack categories labeled in English: CapEx, Energy (OpEx), Maintenance, Downtime & Others
+   - Green callout arrow showing the savings percentage from the article
+
+5. BUSINESS CASE SUMMARY (compact table on the right or below the chart)
+   - 5 rows: Industry / Investment / Energy Saving / Maintenance Reduction / Payback Period
+   - Values pulled from the article (use ranges where the article uses ranges)
+
+6. CONSULTANT INSIGHT (pull-quote card)
+   - The article's consultant question, translated into a clean professional English
+     sentence, displayed inside a soft cream callout
+   - Add 1-line English context underneath explaining why this question works
+
+7. KNOWLEDGE CAPTURE (dedicated callout panel near the bottom — this
+   is the "remember this" card that defines the article as a piece of
+   knowledge sharing, and must be visually distinct from the rest of
+   the infographic — set on a soft amber or pale-yellow background)
+   - Panel title in English uppercase: KNOWLEDGE CAPTURE
+   - One short English summary sentence at the top of the panel
+     (the article's KC summary, e.g., "TCO shifts the conversation
+     from price to lifetime value")
+   - Beneath it, 2-3 small inline reference cards each labeled with a
+     short English title (e.g., "TCO Formula", "Payback Rule",
+     "Downtime Cost Trick") containing the formula or rule of thumb
+     in plain text on a single line
 
 Content Rules:
-- Keep text concise but meaningful
-- Avoid crowded infographic
-- Avoid excessive whitespace
-- Avoid tiny unreadable text
+- Every section above MUST be filled with actual content from the article — not empty boxes, not stub labels
+- Per-section text density: aim for 2-3 short English sentences in body sections (PROBLEM, HIDDEN COST, SOLUTION, IMPACT, KNOWLEDGE CAPTURE); one rich sentence in HERO subtitle and INSIGHT quote
+- Total visible body text across all sections should comfortably fill the canvas without crowding (think "executive one-page summary")
+- Keep each individual sentence concise (5-9 words) so it stays readable at thumbnail size
+- Avoid crowded crammed-together text AND avoid empty whitespace; aim for the balanced density of a premium consulting deliverable
+- Avoid tiny unreadable text — body bullets should be readable at half-page size
 - Prioritize strategic clarity over decoration
 - Focus on one main business narrative
 - Use executive-level communication style
 - Make charts simple and visually clean
-- Highlight financial and operational impact clearly
+- Highlight financial and operational impact clearly with bold numbers
 
-Language Rules (critical):
-- Big headlines and section labels must be in ENGLISH
-  (e.g. "PROBLEM", "HIDDEN COST", "SOLUTION", "BUSINESS IMPACT",
-   "CASE SUMMARY", "CONSULTANT INSIGHT", "KEY FORMULA",
-   "RULE OF THUMB", "DOWNTIME COST TRICK")
-- Body explanations and bullets must be in THAI — use a clean
-  Sarabun-style sans-serif Thai font with sharp readable glyphs.
-  No broken or scrambled Thai characters.
-- Technical terms in parentheses are OK (e.g. "ต้นทุนรวม (TCO)")
-- KPI values use numerals (language-neutral)
-
-First identify:
+First identify (do this internally before laying out the canvas):
 - Main business insight
-- Key financial impact (with EXACT numbers from article facts)
-- Hidden cost drivers
+- Key financial impact (with exact numbers from the article)
+- Hidden cost drivers (specific drivers from the article, not generic)
 - Best visual metaphor
 - Executive takeaway
 
-Then create the infographic. Include "PTT NGR ESP" branding in the
-footer with tagline "Driving Energy Efficiency. Delivering Sustainable Value."""
+Then create the infographic — fill every section with real article content, in English.
+
+Critical typography rule:
+Use generously large typography throughout. The hero headline fills
+most of the panel width. KPI numbers are very large and bold (the
+single most prominent element on the canvas after the headline).
+Body bullets, chart axis labels, table cells, and Knowledge Capture
+formulas are large enough to be comfortably readable when the
+infographic is viewed as a thumbnail inside an email or on a phone
+screen. Avoid ANY tiny or cramped text — if a section can't fit at
+a readable size, prefer fewer words over shrinking the type.
+
+Critical language rule:
+ALL TEXT IN THE FINAL IMAGE MUST BE ENGLISH ONLY. The article below
+is in Thai — translate the salient facts into clean professional
+English when placing them on the canvas. Do NOT render any Thai
+characters or any other non-Latin script anywhere in the image.
+
+Critical accuracy rule:
+Use ONLY numbers and facts that appear in the article below. If the
+article says "25-30%", show "25-30%" — do not invent a more specific
+"27%". Do not fabricate company names, person names, or timelines.
+
+Critical branding rule:
+Do NOT place any logo, watermark, brand mark, color hex code, or
+font name anywhere in the image.
+
+Article:
+{article}"""
+
+
+def _is_imagen(model: str) -> bool:
+    return model.startswith("imagen")
 
 
 class ImageAgent:
     """Renders an infographic per daily article. Vertex-only — falls
     back to None when VERTEX_AI_PROJECT is not configured."""
 
-    def __init__(self, settings: Settings, gemini: GeminiClient):
+    def __init__(self, settings: Settings):
         self.settings = settings
-        self.gemini = gemini
+        self.model_name = os.getenv("IMAGE_MODEL", DEFAULT_MODEL)
         self.client = self._init_client()
 
     def _init_client(self):
@@ -159,7 +199,7 @@ class ImageAgent:
                 location=self.settings.VERTEX_AI_LOCATION,
                 credentials=creds,
             )
-            logger.info(f"🎨 ImageAgent ready ({IMAGE_MODEL})")
+            logger.info(f"🎨 ImageAgent ready ({self.model_name})")
             return client
         except Exception as e:
             logger.error(f"🎨 ImageAgent init failed: {e}")
@@ -170,30 +210,22 @@ class ImageAgent:
         if not self.client:
             return None
         try:
-            brief = self._build_brief(article_md)
-            if not brief or brief.startswith("[Error"):
-                logger.warning("🎨 brief generation failed — skipping image")
-                return None
-
-            prompt = IMAGE_PROMPT.format(
-                topic=topic_meta.get("topic", ""),
-                industry=topic_meta.get("industry", "ทั่วไป") or "ทั่วไป",
-                pillar=topic_meta.get("pillar", "TECHNICAL"),
-                brief=brief.strip(),
-            )
+            # Pass the full Thai article straight into the image prompt.
+            # Gemini 2.5 Flash Image's ~32k-token window comfortably
+            # holds article + style template; a separate text-only
+            # brief generator is no longer needed.
+            article = (article_md or "").strip()[:6000]  # safety cap
+            prompt = IMAGE_PROMPT.format(article=article)
             logger.info(
-                f"🎨 ImageAgent: generating infographic "
-                f"(prompt {len(prompt)} chars, brief {len(brief)} chars)"
+                f"🎨 ImageAgent: generating via {self.model_name} "
+                f"(prompt {len(prompt)} chars)"
             )
 
-            response = self.client.models.generate_content(
-                model=IMAGE_MODEL,
-                contents=prompt,
-                config=types.GenerateContentConfig(
-                    response_modalities=["IMAGE"],
-                ),
-            )
-            data = self._extract_image_bytes(response)
+            if _is_imagen(self.model_name):
+                data = self._call_imagen(prompt)
+            else:
+                data = self._call_gemini_image(prompt)
+
             if not data:
                 logger.warning("🎨 model returned no image (safety filter?)")
                 return None
@@ -203,10 +235,34 @@ class ImageAgent:
             logger.error(f"🎨 image gen failed (non-blocking): {e}")
             return None
 
-    @staticmethod
-    def _extract_image_bytes(response) -> bytes | None:
-        """Pull the first inline_data image bytes out of a Gemini Image
-        response. Returns None when no image part is present."""
+    def _call_imagen(self, prompt: str) -> bytes | None:
+        """Imagen 4 family uses the dedicated generate_images endpoint."""
+        response = self.client.models.generate_images(
+            model=self.model_name,
+            prompt=prompt,
+            config=types.GenerateImagesConfig(
+                number_of_images=1,
+                aspect_ratio="3:4",
+                output_mime_type="image/png",
+                safety_filter_level="BLOCK_LOW_AND_ABOVE",
+                person_generation="DONT_ALLOW",
+            ),
+        )
+        images = getattr(response, "generated_images", None) or []
+        if not images:
+            return None
+        return images[0].image.image_bytes
+
+    def _call_gemini_image(self, prompt: str) -> bytes | None:
+        """Gemini 2.5+/3.x Image models go through generate_content with
+        an IMAGE response modality and embed bytes in inline_data parts."""
+        response = self.client.models.generate_content(
+            model=self.model_name,
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                response_modalities=["IMAGE"],
+            ),
+        )
         candidates = getattr(response, "candidates", None) or []
         for cand in candidates:
             content = getattr(cand, "content", None)
@@ -221,12 +277,3 @@ class ImageAgent:
                     if data:
                         return data
         return None
-
-    def _build_brief(self, article_md: str) -> str:
-        """Compress the full article into a ≤300-word brief. Reuses the
-        text Gemini client (Flash) so the call is retried + cost-tracked
-        like every other agent."""
-        return self.gemini.generate(
-            BRIEF_PROMPT.format(article=article_md[:2500]),
-            agent_tag="image_brief",
-        )

@@ -184,9 +184,16 @@ def main(date: str = None, dry_run: bool = False,
     # are non-blocking — if image gen errors out we still send the email.
     image_bytes = None
     if s.FOLDER_IMAGES and s.use_vertex:
-        image_bytes = ImageAgent(s, gemini).generate(final_md, topic)
+        image_bytes = ImageAgent(s).generate(final_md, topic)
 
-    email_html = DesignerAgent.create_email(final_md, topic, image_bytes=image_bytes)
+    # Two HTMLs from the same content:
+    # - email_html uses cid:infographic so the image is MIME-attached
+    #   (downloadable + inline-rendered without bloating the body).
+    # - archive_html embeds base64 so opening the archived HTML later
+    #   from Drive still shows the image standalone.
+    image_cid = "infographic" if image_bytes else None
+    email_html = DesignerAgent.create_email(final_md, topic, image_cid=image_cid)
+    archive_html = DesignerAgent.create_email(final_md, topic, image_bytes=image_bytes)
 
     date_str   = topic["date"].strftime("%Y-%m-%d")
     month_path = topic["date"].strftime("%Y/%B").lower()
@@ -216,9 +223,12 @@ def main(date: str = None, dry_run: bool = False,
             img_filename = f"[Image] {date_str} {topic['topic'][:50]}.png"
             drive.upload(img_filename, image_bytes, img_folder, "image/png")
 
+        # Upload the standalone-viewable archive copy (image embedded
+        # as base64) so Drive preview renders it correctly later. The
+        # SMTP delivery uses the cid version below.
         email_folder = drive.get_or_create_folder(
             f"Email Archives/{month_path}", s.FOLDER_EMAIL_ARCHIVES)
-        html_id = drive.upload(email_filename, email_html, email_folder, "text/html")
+        html_id = drive.upload(email_filename, archive_html, email_folder, "text/html")
 
         kb_folder = drive.get_or_create_folder(
             f"{pillar_dir}/{cluster}", s.FOLDER_KNOWLEDGE_BASE)
@@ -251,7 +261,14 @@ def main(date: str = None, dry_run: bool = False,
         logger.info("📚 Rebuilding Knowledge Base master index...")
         index.rebuild()
 
-        email_ok = send_daily_email(subject, email_html)
+        attachments = None
+        if image_bytes:
+            # Recipient sees the file in their attachment area AND the
+            # cid-referenced <img> in the body resolves to the same data.
+            img_attach_name = f"infographic-{date_str}.png"
+            attachments = [(img_attach_name, image_bytes, image_cid)]
+
+        email_ok = send_daily_email(subject, email_html, attachments=attachments)
         if not email_ok:
             logger.warning("📧 Email not sent — check EMAIL_SENDER/APP_PASSWORD/RECIPIENTS")
 

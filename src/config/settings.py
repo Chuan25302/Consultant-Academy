@@ -54,7 +54,9 @@ class Settings:
         "editor":       5000,
         "recap":        2000,
         "planner":      6000,
-        "image_brief":   600,  # compresses article → 200-word brief for Imagen
+        # image_brief intentionally removed — ImageAgent now passes the
+        # full article straight to Gemini Flash Image (32k-token window),
+        # so a separate text-only brief generator is no longer needed.
     }
 
     RESEARCH_CACHE_TTL_DAYS: int = 7
