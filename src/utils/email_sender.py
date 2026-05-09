@@ -18,6 +18,7 @@ def send_daily_email(subject: str, html_body: str) -> bool:
     sender = os.getenv("EMAIL_SENDER", "")
     password = os.getenv("EMAIL_APP_PASSWORD", "")
     recipients_raw = os.getenv("EMAIL_RECIPIENTS", "")
+    reply_to = os.getenv("EMAIL_REPLY_TO", "").strip()
 
     if not all([sender, password, recipients_raw]):
         logger.info("📧 Email skipped — EMAIL_SENDER/APP_PASSWORD/RECIPIENTS not set")
@@ -29,6 +30,8 @@ def send_daily_email(subject: str, html_body: str) -> bool:
     msg["Subject"] = subject
     msg["From"] = sender
     msg["To"] = ", ".join(recipients)
+    if reply_to:
+        msg["Reply-To"] = reply_to
     msg.attach(MIMEText(html_body, "html", "utf-8"))
 
     try:

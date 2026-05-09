@@ -197,9 +197,7 @@ class CalendarPlannerAgent:
             total_lines=total_lines,
         )
         for attempt in range(1, 3):  # up to 2 attempts
-            raw = self.gemini.generate(
-                prompt, max_tokens=5000, agent_tag="planner"
-            )
+            raw = self.gemini.generate(prompt, agent_tag="planner")
             if not raw or raw.startswith("[Error"):
                 logger.error("Planner LLM failed")
                 return None

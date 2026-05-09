@@ -13,6 +13,8 @@ from src.integrations.gemini_client import GeminiClient
 
 logger = logging.getLogger(__name__)
 
+WEEKDAY_TH_SHORT = ["จ", "อ", "พ", "พฤ", "ศ", "ส", "อา"]
+
 PROMPT = """
 คุณคือผู้สรุปเนื้อหา PTT NGR ESP Consultant Academy
 
@@ -51,36 +53,43 @@ class RecapAgent:
         today = today or now_bangkok()
         week_start = today - timedelta(days=today.weekday())
         summaries = []
+        daily_topics = []  # for the timeline strip in the recap layout
 
         for offset in range(5):  # Mon–Fri (recap runs Saturday)
-            day = (week_start + timedelta(days=offset)).strftime("%Y-%m-%d")
+            d = week_start + timedelta(days=offset)
+            day = d.strftime("%Y-%m-%d")
             prefix = f"[Email] {day}"
             files = self.drive.list_files_by_prefix(prefix)
+            day_topic = "—"
             for f in files:
                 title = re.sub(r"\[Email\] \d{4}-\d{2}-\d{2} (.+)\.html",
                                r"\1", f["name"])
                 summaries.append(f"- {title}")
+                day_topic = title  # last one wins if a day has multiple
+            daily_topics.append({
+                "date_th": f"{d.day}/{d.month}",
+                "day_th":  WEEKDAY_TH_SHORT[d.weekday()],
+                "topic":   day_topic,
+            })
 
         if not summaries:
             logger.warning("⚠️ No emails found for recap")
             return
 
+        week_num = today.isocalendar()[1]
         recap_md = self.gemini.generate(
             PROMPT.format(
-                week=today.isocalendar()[1],
+                week=week_num,
                 summaries="\n".join(summaries),
             ),
-            max_tokens=1500,
             agent_tag="recap",
         )
 
-        recap_html = DesignerAgent.create_email(
+        recap_html = DesignerAgent.create_recap_email(
             content=recap_md,
-            metadata={
-                "pillar": "RECAP",
-                "topic": f"สรุป สัปดาห์ที่ {today.isocalendar()[1]} — Consultant Toolkit",
-                "date": today, "industry": None,
-            },
+            week_num=week_num,
+            daily_topics=daily_topics,
+            date=today,
         )
 
         date_str = today.strftime("%Y-%m-%d")

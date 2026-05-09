@@ -35,7 +35,23 @@ class Settings:
     # TRANSLATOR | RECAP). Any model the google-genai SDK accepts.
     GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
 
-    MAX_TOKENS_PER_AGENT: int = 2000
+    MAX_TOKENS_PER_AGENT: int = 2000  # legacy fallback when agent_tag unknown
+
+    # Per-agent output budgets. Sized to the prompt's word target +
+    # markdown overhead. Thai SentencePiece runs ~1.0–1.3 tok/char so
+    # a 600-word article (~1.8k chars) plus headers, glossary, related
+    # section comfortably fits in 4000.
+    MAX_TOKENS = {
+        "research":     2500,
+        "expert":       3500,
+        "industry":     2000,
+        "factchecker":  4000,
+        "translator":   4000,
+        "editor":       4000,
+        "recap":        2000,
+        "planner":      6000,
+    }
+
     RESEARCH_CACHE_TTL_DAYS: int = 7
 
     TZ = ZoneInfo("Asia/Bangkok")
@@ -45,6 +61,10 @@ class Settings:
         """Resolve model for a given agent. Env override > default."""
         env_key = f"GEMINI_MODEL_{agent_tag.upper()}"
         return os.getenv(env_key) or os.getenv("GEMINI_MODEL") or cls.GEMINI_MODEL
+
+    @classmethod
+    def tokens_for(cls, agent_tag: str) -> int:
+        return cls.MAX_TOKENS.get(agent_tag.lower(), cls.MAX_TOKENS_PER_AGENT)
 
 
 def now_bangkok() -> datetime:

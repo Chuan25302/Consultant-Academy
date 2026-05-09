@@ -66,7 +66,6 @@ class EditorAgent:
         bullet_issues = "\n".join(f"- {i}" for i in issues)
         improved = self.gemini.generate(
             PROMPT.format(issues=bullet_issues, content=md),
-            max_tokens=2000,
             agent_tag="editor",
         )
         if improved and not improved.startswith("[Error"):

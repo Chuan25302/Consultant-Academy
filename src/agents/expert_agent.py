@@ -336,6 +336,4 @@ class ExpertAgent:
         )
         if topic_meta:
             prompt += load_skills(topic_meta)
-        return self.gemini.generate(
-            prompt, max_tokens=2000, agent_tag="expert"
-        )
+        return self.gemini.generate(prompt, agent_tag="expert")

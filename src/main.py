@@ -53,6 +53,14 @@ PILLAR_FOLDER = {
     "SUSTAINABILITY": "06-Sustainability-Carbon",
 }
 
+WEEKDAY_TH = ["จันทร์", "อังคาร", "พุธ", "พฤหัส", "ศุกร์", "เสาร์", "อาทิตย์"]
+
+MONTHS_TH = {
+    1:"มกราคม", 2:"กุมภาพันธ์", 3:"มีนาคม", 4:"เมษายน",
+    5:"พฤษภาคม", 6:"มิถุนายน", 7:"กรกฎาคม", 8:"สิงหาคม",
+    9:"กันยายน", 10:"ตุลาคม", 11:"พฤศจิกายน", 12:"ธันวาคม",
+}
+
 DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 
 
@@ -168,9 +176,10 @@ def main(date: str = None, dry_run: bool = False,
     edited = EditorAgent(gemini).review(translated)
 
     index = IndexBuilder(drive, s)
-    final_md = edited
+    related = index.find_related(topic, limit=3) if not dry_run else []
+    final_md = edited + IndexBuilder.render_related_section(related)
 
-    email_html = DesignerAgent.create_email(final_md, topic)
+    email_html = DesignerAgent.create_email(final_md, topic, related=related)
 
     date_str   = topic["date"].strftime("%Y-%m-%d")
     month_path = topic["date"].strftime("%Y/%B").lower()
@@ -181,7 +190,8 @@ def main(date: str = None, dry_run: bool = False,
     email_filename = f"[Email] {date_str} {topic['topic']}.html"
     docx_filename  = f"[L{level}] {date_str} {topic['topic'][:50]}.docx"
 
-    subject = f"[Consultant Academy] {date_str} | {topic['topic']}"
+    weekday_th = WEEKDAY_TH[topic["date"].weekday()]
+    subject = f"[{topic['pillar']} · {weekday_th}] {topic['topic']}"
 
     if dry_run:
         logger.info(f"🧪 [dry-run] would upload: {email_filename}")
@@ -195,7 +205,19 @@ def main(date: str = None, dry_run: bool = False,
 
         kb_folder = drive.get_or_create_folder(
             f"{pillar_dir}/{cluster}", s.FOLDER_KNOWLEDGE_BASE)
-        docx_bytes = markdown_to_docx_bytes(edited, title=topic["topic"])
+        docx_subtitle = (
+            f"L{level} · {cluster}" if cluster and cluster != "General"
+            else f"L{level}"
+        )
+        d = topic["date"]
+        docx_date = f"{d.day} {MONTHS_TH[d.month]} {d.year + 543}"
+        docx_bytes = markdown_to_docx_bytes(
+            final_md,
+            title=topic["topic"],
+            pillar=topic["pillar"],
+            subtitle=docx_subtitle,
+            date=docx_date,
+        )
         drive.upload(docx_filename, docx_bytes, kb_folder, DOCX_MIME)
 
         logger.info("📚 Rebuilding Knowledge Base master index...")

@@ -132,6 +132,5 @@ class IndustryAgent:
                 industry_knowledge=INDUSTRY_KNOWLEDGE,
                 anti_halluc=ANTI_HALLUC,
             ),
-            max_tokens=1500,
             agent_tag="industry",
         )

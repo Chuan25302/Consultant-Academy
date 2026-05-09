@@ -61,21 +61,42 @@ class GeminiClient:
             ),
         )
 
+    @staticmethod
+    def _hit_max_tokens(response) -> bool:
+        """True if the model stopped because it ran out of output budget."""
+        candidates = getattr(response, "candidates", None) or []
+        for c in candidates:
+            reason = getattr(c, "finish_reason", None)
+            name = getattr(reason, "name", None) or str(reason or "")
+            if name.upper().endswith("MAX_TOKENS"):
+                return True
+        return False
+
     def generate(self, prompt: str, max_tokens: int | None = None,
                  agent_tag: str = "unknown") -> str:
         model = self.settings.model_for(agent_tag)
+        tokens = max_tokens or self.settings.tokens_for(agent_tag) or self.max_tokens
         try:
-            response = self._call_model(prompt, max_tokens or self.max_tokens, model)
+            response = self._call_model(prompt, tokens, model)
+            if self._hit_max_tokens(response):
+                bigger = int(tokens * 1.5)
+                logger.warning(
+                    f"⚠️ {agent_tag}: hit MAX_TOKENS at {tokens}, "
+                    f"retrying once at {bigger}"
+                )
+                self._track(response, agent_tag, model)  # still log first attempt
+                response = self._call_model(prompt, bigger, model)
             self._track(response, agent_tag, model)
             return response.text or ""
         except Exception as e:
             logger.error(f"Gemini error ({agent_tag}, {model}) after retries: {e}")
             return f"[Error: {e}]"
 
-    def generate_json(self, prompt: str, agent_tag: str = "unknown") -> dict:
+    def generate_json(self, prompt: str, agent_tag: str = "unknown",
+                      max_tokens: int | None = None) -> dict:
         raw = self.generate(
             prompt + "\n\nReturn ONLY valid JSON. No markdown fences.",
-            max_tokens=1500, agent_tag=agent_tag,
+            max_tokens=max_tokens, agent_tag=agent_tag,
         )
         raw = re.sub(r"```json\s*|\s*```", "", raw).strip()
         match = re.search(r"\{.*\}", raw, flags=re.DOTALL)

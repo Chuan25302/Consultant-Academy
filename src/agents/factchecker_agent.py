@@ -83,7 +83,6 @@ class FactCheckerAgent:
                 research_json=json.dumps(research_summary, ensure_ascii=False)[:1500],
                 content=content,
             ),
-            max_tokens=2500,
             agent_tag="factchecker",
         )
         if improved and not improved.startswith("[Error"):
