@@ -36,3 +36,6 @@ preview_email_new.html
 .idea/
 .vscode/
 *.swp
+
+# Claude AI
+.claude/
