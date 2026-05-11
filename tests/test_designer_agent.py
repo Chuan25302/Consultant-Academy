@@ -24,7 +24,6 @@ def test_renders_all_pillars(pillar):
     assert "<!DOCTYPE html>" in html
     assert "Test Topic" in html
     assert PILLAR_CONFIG[pillar]["color"] in html
-    assert PILLAR_CONFIG[pillar]["label"] in html
 
 
 def test_compliance_pillar_registered():
@@ -36,21 +35,6 @@ def test_sustainability_pillar_registered():
     assert "SUSTAINABILITY" in PILLAR_CONFIG
     assert PILLAR_CONFIG["SUSTAINABILITY"]["icon"] == "🌱"
     assert "Carbon" in PILLAR_CONFIG["SUSTAINABILITY"]["label"]
-
-
-def test_industry_badge_shown():
-    html = DesignerAgent.create_email("test", _meta(industry="Steel"))
-    assert "🏭 Steel" in html
-
-
-def test_industry_badge_hidden_for_general():
-    html = DesignerAgent.create_email("test", _meta(industry="General"))
-    assert "🏭 General" not in html
-
-
-def test_industry_badge_hidden_for_thai_general():
-    html = DesignerAgent.create_email("test", _meta(industry="ทั่วไป"))
-    assert "🏭 ทั่วไป" not in html
 
 
 def test_buddhist_year_displayed():

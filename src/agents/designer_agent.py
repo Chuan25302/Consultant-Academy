@@ -97,22 +97,12 @@ class DesignerAgent:
         pillar   = metadata.get("pillar", "TECHNICAL")
         topic    = metadata.get("topic", "Untitled")
         date     = metadata.get("date") or now_bangkok()
-        industry = metadata.get("industry", "")
-        level    = metadata.get("level")
         cfg      = PILLAR_CONFIG.get(pillar, PILLAR_CONFIG["TECHNICAL"])
         color    = cfg["color"]
         rgba     = cfg["rgba"]
 
         body     = DesignerAgent._md_to_html(content)
         date_th  = f"{date.day} {MONTHS_TH[date.month]} {date.year + 543}"
-
-        industry_badge = (
-            f'<span class="badge">🏭 {industry}</span>'
-        ) if industry and industry not in ["General", "ทั่วไป"] else ""
-
-        level_badge = (
-            f'<span class="badge">L{level}</span>'
-        ) if level else ""
 
         hero_image = DesignerAgent._render_hero_image(
             image_bytes, topic, image_cid=image_cid,
@@ -127,32 +117,30 @@ class DesignerAgent:
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <style>
-body{{font-family:'Sarabun','Segoe UI',sans-serif;background:#F5F5F5;color:#333;line-height:1.75;margin:0;padding:0}}
+body{{font-family:'CordiaUPC','Cordia New','Sarabun','Segoe UI',sans-serif;background:#F5F5F5;color:#333;line-height:1.75;margin:0;padding:0}}
 .wrap{{max-width:620px;margin:0 auto;background:#fff}}
 .hdr{{background:linear-gradient(135deg,{color} 0%,rgba({rgba},0.8) 100%);color:#fff;padding:28px 24px}}
-.tag{{display:inline-block;background:rgba(255,255,255,0.2);padding:5px 12px;border-radius:20px;font-size:12px;font-weight:700;margin-bottom:12px;color:#fff}}
-.badge{{background:rgba(255,255,255,0.15);padding:3px 10px;border-radius:12px;font-size:11px;margin-left:8px;color:#fff}}
-.hdr h2{{font-size:22px;font-weight:700;margin:6px 0;line-height:1.4;color:#fff}}
-.meta{{font-size:12px;opacity:0.85;margin-top:4px;color:#fff}}
+.hdr h2{{font-size:24px;font-weight:700;margin:6px 0;line-height:1.4;color:#fff}}
+.meta{{font-size:16px;opacity:0.85;margin-top:4px;color:#fff}}
 .bd{{padding:28px 24px}}
-.bd h2{{color:{color};font-size:22px;border-left:4px solid {color};padding-left:10px;margin:24px 0 10px}}
-.bd h3{{color:{color};font-size:18px;margin:18px 0 8px}}
-.bd p{{margin:0 0 16px;font-size:17px}}
+.bd h2{{color:{color};font-size:24px;border-left:4px solid {color};padding-left:10px;margin:24px 0 10px}}
+.bd h3{{color:{color};font-size:20px;margin:18px 0 8px}}
+.bd p{{margin:0 0 16px;font-size:19px}}
 .bd ul{{margin:10px 0 16px 20px;padding:0}}
-.bd li{{margin:8px 0;font-size:17px}}
+.bd li{{margin:8px 0;font-size:19px}}
 .bd strong{{color:{color}}}
 .cmove{{background:#E8F5E9;border:1px solid #A5D6A7;padding:16px;margin:20px 0;border-radius:6px}}
 .cmove h3{{color:#2E7D32;margin:0 0 8px}}
 .kcapture{{background:#FFF8E1;border:1px solid #FFD54F;padding:16px;margin:20px 0;border-radius:6px}}
-.kcapture h3{{color:#F57F17;margin:0 0 8px;font-size:17px}}
+.kcapture h3{{color:#F57F17;margin:0 0 8px;font-size:19px}}
 .kcapture strong{{color:#E65100}}
-.bd blockquote{{margin:14px 0;padding:10px 16px;border-left:3px solid {color};background:rgba({rgba},0.05);color:#555;font-style:italic;font-size:16px}}
+.bd blockquote{{margin:14px 0;padding:10px 16px;border-left:3px solid {color};background:rgba({rgba},0.05);color:#555;font-style:italic;font-size:18px}}
 .bd blockquote p{{margin:0}}
-.glossary{{background:#F5F5F5;padding:16px 20px;margin-top:24px;border-radius:6px;font-size:16px;color:#555;border-top:3px solid {color}}}
-.glossary strong{{color:{color};font-size:16px;display:block;margin-bottom:10px}}
+.glossary{{background:#F5F5F5;padding:16px 20px;margin-top:24px;border-radius:6px;font-size:18px;color:#555;border-top:3px solid {color}}}
+.glossary strong{{color:{color};font-size:18px;display:block;margin-bottom:10px}}
 .glossary-list{{margin:0;padding:0 0 0 18px;list-style:disc}}
-.glossary-list li{{margin:6px 0;color:#555;font-size:16px}}
-.ftr{{background:#ECEFF1;padding:16px 24px;font-size:12px;color:#546E7A;border-top:1px solid #ddd}}
+.glossary-list li{{margin:6px 0;color:#555;font-size:18px}}
+.ftr{{background:#ECEFF1;padding:16px 24px;font-size:16px;color:#546E7A;border-top:1px solid #ddd}}
 .ftr a{{color:{color};text-decoration:none;margin-right:12px}}
 .ftr-mission{{margin-top:12px;padding-top:10px;border-top:1px solid #cfd8dc;color:#546E7A;font-style:italic}}
 .preheader{{display:none!important;visibility:hidden;opacity:0;color:transparent;height:0;width:0;font-size:1px;line-height:1px;mso-hide:all;overflow:hidden}}
@@ -165,7 +153,6 @@ body{{font-family:'Sarabun','Segoe UI',sans-serif;background:#F5F5F5;color:#333;
 <div class="preheader">{preheader}</div>
 <div class="wrap">
   <div class="hdr">
-    <div class="tag">{cfg["icon"]} {cfg["label"]}{industry_badge}{level_badge}</div>
     <h2>{topic}</h2>
     <div class="meta">PTT NGR ESP · Consultant Academy · {date_th} · อ่าน {read_min} นาที</div>
   </div>
@@ -239,27 +226,27 @@ body{{font-family:'Sarabun','Segoe UI',sans-serif;background:#F5F5F5;color:#333;
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <style>
-body{{font-family:'Sarabun','Segoe UI',sans-serif;background:#F5F5F5;color:#333;line-height:1.75;margin:0;padding:0}}
+body{{font-family:'CordiaUPC','Cordia New','Sarabun','Segoe UI',sans-serif;background:#F5F5F5;color:#333;line-height:1.75;margin:0;padding:0}}
 .wrap{{max-width:680px;margin:0 auto;background:#fff}}
 .hdr{{background:linear-gradient(135deg,{color} 0%,rgba({rgba},0.85) 100%);color:#fff;padding:32px 28px}}
-.hdr .week-tag{{display:inline-block;background:rgba(255,255,255,0.18);padding:6px 14px;border-radius:20px;font-size:12px;font-weight:700;margin-bottom:10px;letter-spacing:1px;color:#fff}}
-.hdr h1{{font-size:28px;font-weight:700;margin:4px 0 6px;color:#fff;line-height:1.3}}
-.hdr .range{{font-size:13px;opacity:0.9;color:#fff}}
+.hdr .week-tag{{display:inline-block;background:rgba(255,255,255,0.18);padding:6px 14px;border-radius:20px;font-size:16px;font-weight:700;margin-bottom:10px;letter-spacing:1px;color:#fff}}
+.hdr h1{{font-size:30px;font-weight:700;margin:4px 0 6px;color:#fff;line-height:1.3}}
+.hdr .range{{font-size:16px;opacity:0.9;color:#fff}}
 .timeline{{background:#FAFAFA;border-bottom:1px solid #E0E0E0;padding:14px 18px;display:table;width:100%;box-sizing:border-box}}
-.timeline .day{{display:table-cell;text-align:center;padding:6px 4px;font-size:11px;color:#546E7A;border-right:1px dashed #CFD8DC;vertical-align:top}}
+.timeline .day{{display:table-cell;text-align:center;padding:6px 4px;font-size:16px;color:#546E7A;border-right:1px dashed #CFD8DC;vertical-align:top}}
 .timeline .day:last-child{{border-right:none}}
 .timeline .dname{{font-weight:700;color:{color};display:block;margin-bottom:2px}}
-.timeline .dtopic{{display:block;font-size:11px;color:#37474F;line-height:1.3;margin-top:2px}}
+.timeline .dtopic{{display:block;font-size:16px;color:#37474F;line-height:1.3;margin-top:2px}}
 .bd{{padding:28px 24px}}
-.bd h2{{color:{color};font-size:20px;border-left:4px solid {color};padding-left:10px;margin:24px 0 10px}}
-.bd h3{{color:{color};font-size:17px;margin:18px 0 8px}}
-.bd p{{margin:0 0 14px;font-size:16px}}
+.bd h2{{color:{color};font-size:22px;border-left:4px solid {color};padding-left:10px;margin:24px 0 10px}}
+.bd h3{{color:{color};font-size:19px;margin:18px 0 8px}}
+.bd p{{margin:0 0 14px;font-size:18px}}
 .bd ul{{margin:8px 0 14px 20px;padding:0}}
-.bd li{{margin:6px 0;font-size:16px}}
+.bd li{{margin:6px 0;font-size:18px}}
 .bd strong{{color:{color}}}
-.bd blockquote{{margin:14px 0;padding:10px 16px;border-left:3px solid {color};background:rgba({rgba},0.05);color:#555;font-style:italic;font-size:16px}}
+.bd blockquote{{margin:14px 0;padding:10px 16px;border-left:3px solid {color};background:rgba({rgba},0.05);color:#555;font-style:italic;font-size:18px}}
 .bd blockquote p{{margin:0}}
-.ftr{{background:#ECEFF1;padding:16px 24px;font-size:12px;color:#546E7A;border-top:1px solid #ddd}}
+.ftr{{background:#ECEFF1;padding:16px 24px;font-size:16px;color:#546E7A;border-top:1px solid #ddd}}
 .ftr-mission{{margin-top:8px;color:#546E7A;font-style:italic}}
 .preheader{{display:none!important;visibility:hidden;opacity:0;color:transparent;height:0;width:0;font-size:1px;line-height:1px;mso-hide:all;overflow:hidden}}
 @media(max-width:680px){{.bd,.hdr{{padding:20px 16px}}.timeline{{padding:10px 8px}}.timeline .day{{padding:4px 2px;font-size:10px}}}}
