@@ -242,10 +242,8 @@ class IndexBuilder:
             return ""
         lines = ["", "## 📚 อ่านเพิ่มในชุดเดียวกัน", ""]
         for a in related:
-            target_id = a.get("html_id") or a["id"]
-            link = _drive_link(target_id)
             lines.append(
-                f"**[L{a['level']}]** [{a['title']}]({link}) — {a['date']}"
+                f"**[L{a['level']}] {a['title']} — {a['date']}**"
             )
             if a.get("tldr"):
                 lines.append(a["tldr"])

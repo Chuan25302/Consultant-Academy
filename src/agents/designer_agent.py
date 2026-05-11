@@ -135,11 +135,11 @@ body{{font-family:'Sarabun','Segoe UI',sans-serif;background:#F5F5F5;color:#333;
 .hdr h2{{font-size:22px;font-weight:700;margin:6px 0;line-height:1.4;color:#fff}}
 .meta{{font-size:12px;opacity:0.85;margin-top:4px;color:#fff}}
 .bd{{padding:28px 24px}}
-.bd h2{{color:{color};font-size:20px;border-left:4px solid {color};padding-left:10px;margin:24px 0 10px}}
-.bd h3{{color:{color};font-size:17px;margin:18px 0 8px}}
-.bd p{{margin:0 0 14px;font-size:16px}}
-.bd ul{{margin:8px 0 14px 20px;padding:0}}
-.bd li{{margin:6px 0;font-size:16px}}
+.bd h2{{color:{color};font-size:22px;border-left:4px solid {color};padding-left:10px;margin:24px 0 10px}}
+.bd h3{{color:{color};font-size:18px;margin:18px 0 8px}}
+.bd p{{margin:0 0 16px;font-size:17px}}
+.bd ul{{margin:10px 0 16px 20px;padding:0}}
+.bd li{{margin:8px 0;font-size:17px}}
 .bd strong{{color:{color}}}
 .cmove{{background:#E8F5E9;border:1px solid #A5D6A7;padding:16px;margin:20px 0;border-radius:6px}}
 .cmove h3{{color:#2E7D32;margin:0 0 8px}}
@@ -169,8 +169,8 @@ body{{font-family:'Sarabun','Segoe UI',sans-serif;background:#F5F5F5;color:#333;
     <h2>{topic}</h2>
     <div class="meta">PTT NGR ESP · Consultant Academy · {date_th} · อ่าน {read_min} นาที</div>
   </div>
-  {hero_image}
   <div class="bd">{body}</div>
+  {hero_image}
   <div class="ftr">
     <div class="ftr-mission">PTT NGR ESP · Consultant Academy — ยกระดับทีมจากผู้เชี่ยวชาญ สู่ Energy Consultant ที่ลูกค้าไว้วางใจ</div>
   </div>

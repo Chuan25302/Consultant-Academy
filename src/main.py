@@ -177,8 +177,7 @@ def main(date: str = None, dry_run: bool = False,
     edited = EditorAgent(gemini).review(translated)
 
     index = IndexBuilder(drive, s)
-    related = index.find_related(topic, limit=3) if not dry_run else []
-    final_md = edited + IndexBuilder.render_related_section(related)
+    final_md = edited
 
     # Optional infographic (gated on FOLDER_IMAGES + Vertex AI). Failures
     # are non-blocking — if image gen errors out we still send the email.
