@@ -231,25 +231,6 @@ class IndexBuilder:
                 )
         return ranked
 
-    @staticmethod
-    def render_related_section(related: list[dict]) -> str:
-        """Markdown snippet to append at the end of an article. Renders
-        each related item as: bold title + level/date metadata, with the
-        TL;DR on the next line when available. Link prefers the Email
-        Archive HTML (browser-friendly) and falls back to the DOCX when
-        no HTML is indexed yet."""
-        if not related:
-            return ""
-        lines = ["", "## 📚 อ่านเพิ่มในชุดเดียวกัน", ""]
-        for a in related:
-            lines.append(
-                f"**[L{a['level']}] {a['title']} — {a['date']}**"
-            )
-            if a.get("tldr"):
-                lines.append(a["tldr"])
-            lines.append("")  # blank line separates items
-        return "\n".join(lines).rstrip() + "\n"
-
     def render(self, articles: list[dict]) -> str:
         if not articles:
             return (

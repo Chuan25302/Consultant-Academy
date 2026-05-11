@@ -204,7 +204,8 @@ def main(date: str = None, dry_run: bool = False,
     docx_filename  = f"[L{level}] {date_str} {topic['topic'][:50]}.docx"
 
     weekday_th = WEEKDAY_TH[topic["date"].weekday()]
-    subject = f"[{topic['pillar']} · {weekday_th}] {topic['topic']}"
+    subject_date = topic["date"].strftime("%Y-%m-%d")
+    subject = f"[{subject_date} · {topic['pillar']} · {weekday_th}] {topic['topic']}"
 
     if dry_run:
         logger.info(f"🧪 [dry-run] would upload: {email_filename}")
