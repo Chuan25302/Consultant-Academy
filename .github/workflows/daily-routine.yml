@@ -21,6 +21,13 @@ permissions:
   pages: write
   id-token: write
 
+# Force JS actions to run on Node 24 even when the action's metadata
+# still pins Node 20. Lets us silence the deprecation warning for
+# GitHub-maintained actions (configure-pages, deploy-pages) that don't
+# yet have Node 24 releases. Safe to remove once those upgrade.
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
 # Pages allows only one concurrent deploy. Don't cancel an in-flight one —
 # completing today's site is more useful than racing tomorrow's.
 concurrency:

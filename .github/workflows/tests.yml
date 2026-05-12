@@ -6,6 +6,12 @@ on:
   pull_request:
     branches: [main]
 
+# Force JS actions onto Node 24 so the Node-20 deprecation warning
+# stops surfacing on every CI run. Safe to remove once all referenced
+# actions ship Node-24 releases.
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
 jobs:
   lint:
     runs-on: ubuntu-latest
