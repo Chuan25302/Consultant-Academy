@@ -245,19 +245,34 @@ def collect_posts(drive: DriveAPI, settings: Settings, limit: int | None = None)
         logger.error("FOLDER_EMAIL_ARCHIVES is not set — cannot build site")
         return []
 
+    # Drop posts dated after today (Bangkok). Backfill / test runs sometimes
+    # leave future-dated HTML files in the Drive archive; without this filter
+    # they leak onto the public site and look like the team has shipped
+    # tomorrow's content already.
+    today_bkk_str = now_bangkok().strftime("%Y-%m-%d")
+
     files = drive.walk(archives_folder)
     archive_files = []
+    skipped_future = 0
     for f in files or []:
         if not isinstance(f, dict):
             continue
         m = ARCHIVE_FILENAME_RE.match(f.get("name", ""))
-        if m:
-            archive_files.append((m.group(1), m.group(2), f["id"], f.get("name", "")))
+        if not m:
+            continue
+        date_str = m.group(1)
+        if date_str > today_bkk_str:
+            skipped_future += 1
+            continue
+        archive_files.append((date_str, m.group(2), f["id"], f.get("name", "")))
     archive_files.sort(key=lambda x: x[0], reverse=True)
     if limit:
         archive_files = archive_files[:limit]
 
-    logger.info(f"Found {len(archive_files)} archived emails")
+    logger.info(
+        f"Found {len(archive_files)} archived emails "
+        f"(skipped {skipped_future} future-dated)"
+    )
 
     raw_calendar = ""
     try:

@@ -13,7 +13,7 @@ import pytest
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from tools.build_site import Post, is_meaningful_cluster, render_site, slugify
+from tools.build_site import Post, collect_posts, is_meaningful_cluster, render_site, slugify
 
 
 # ---------- slug helper -----------------------------------------------------
@@ -43,6 +43,42 @@ def test_slugify_ascii(text, expected):
 ])
 def test_is_meaningful_cluster(name, expected):
     assert is_meaningful_cluster(name) is expected
+
+
+def test_collect_posts_skips_future_dates(monkeypatch):
+    """Drive can hold backfill/test HTML files dated past today (the team
+    sometimes runs `main.py --date 2026-06-01` for QA). Those files must
+    not leak into the public site as if they were published already."""
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+
+    fixed_today = datetime(2026, 5, 12, 9, 0, tzinfo=ZoneInfo("Asia/Bangkok"))
+    monkeypatch.setattr("tools.build_site.now_bangkok", lambda: fixed_today)
+
+    class FakeDrive:
+        def walk(self, _folder):
+            return [
+                {"name": "[Email] 2026-05-10 Past article.html", "id": "p1"},
+                {"name": "[Email] 2026-05-12 Today's article.html", "id": "t1"},
+                {"name": "[Email] 2026-05-13 Future article.html", "id": "f1"},
+                {"name": "[Email] 2026-06-01 Far future.html", "id": "f2"},
+            ]
+        def download_file(self, _id):
+            return '<html><body><div class="bd"><p>body</p></div></body></html>'
+        def _list(self, *a, **k):
+            return {"files": []}
+
+    class FakeSettings:
+        FOLDER_EMAIL_ARCHIVES = "fake-folder"
+        FOLDER_KNOWLEDGE_BASE = ""
+        CALENDAR_FILE_ID = ""
+
+    posts = collect_posts(FakeDrive(), FakeSettings())
+    dates = {p.date for p in posts}
+    assert "2026-05-10" in dates
+    assert "2026-05-12" in dates      # today is allowed
+    assert "2026-05-13" not in dates  # future blocked
+    assert "2026-06-01" not in dates
 
 
 def test_render_skips_junk_cluster_page(tmp_path):
