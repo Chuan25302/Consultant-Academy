@@ -76,11 +76,42 @@ ruff check .   # lint
 
 CI runs ruff + pytest on every push/PR via `.github/workflows/tests.yml`.
 
+## KM Site (browsable archive)
+
+Daily emails are also mirrored to a static site so the team can search/browse the whole library. The site is regenerable from Drive — `_site/` is gitignored and Pages serves it directly from an Actions artifact (no commits to repo).
+
+### One-time setup
+1. **Enable GitHub Pages** — Repo Settings → Pages → Source = **GitHub Actions**
+2. **Add secret** `SITE_BASE_URL` = the URL Pages gives you (e.g. `https://chuan25302.github.io/Consultant-Academy`)
+3. Push — the existing `GOOGLE_SERVICE_ACCOUNT_JSON`, `CALENDAR_FILE_ID`, `FOLDER_EMAIL_ARCHIVES`, `FOLDER_KNOWLEDGE_BASE` secrets are reused
+
+### How it runs
+- Site rebuild is the `deploy-site` job inside `.github/workflows/daily-routine.yml` — runs `needs: run` (after the email has already been sent), so site failures can never block delivery
+- Reads Drive Email Archives → renders templates → deploys to Pages (~1 min)
+- The daily email's footer gets two buttons when `SITE_BASE_URL` is set: "อ่านบนเว็บ" (today's post) and "คลังความรู้" (homepage)
+- Email footer is hidden when `SITE_BASE_URL` is empty — pipeline is unchanged for the no-site case
+- `.github/workflows/build-site.yml` is a manual-dispatch-only workflow for ad-hoc rebuilds (template/CSS edits, backfills) without running the full daily pipeline
+
+### Site routes
+| Path | Content |
+|---|---|
+| `/` | Hero + latest 20 + pillar grid + popular clusters |
+| `/posts/YYYY/MM/DD/` | Article (same body as the email + related sidebar) |
+| `/archive/` → `/YYYY/` → `/MM/` | By date |
+| `/pillars/` → `/<slug>/` | By pillar (technical, industry, framework, softskill, compliance, sustainability) |
+| `/clusters/` → `/<slug>/` | By cluster ("เรื่อง") with L1→L2→L3 learning path |
+
+### Local preview
+```bash
+python tools/preview_site.py --open   # builds 7 fixture posts → docs_preview/ + opens browser
+```
+
 ## Project Layout
 ```
 consultant-academy/
 ├── .github/workflows/
-│   ├── daily-routine.yml       # Mon–Sat cron (Mon–Fri content, Sat recap)
+│   ├── daily-routine.yml       # Mon–Sat cron — pipeline + KM site deploy (deploy-site job)
+│   ├── build-site.yml          # Manual-only KM site rebuild (post template/CSS edits)
 │   └── tests.yml               # ruff + pytest on push/PR
 ├── src/
 │   ├── main.py                 # orchestrator + CLI

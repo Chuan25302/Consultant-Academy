@@ -7,6 +7,7 @@ glossary + Consultant Move boxes are added by post-processing the HTML.
 """
 import base64
 import logging
+import os
 import re
 
 import cssutils
@@ -73,6 +74,12 @@ TLDR_BODY_RE = re.compile(
 MD_NOISE_RE = re.compile(r'[#*_`>\[\]\(\)\|]')
 
 
+def post_url_path(date) -> str:
+    """Site path for a daily post — date-based, deterministic, no slug.
+    Used by both Designer (email button) and build_site.py (page output)."""
+    return f"/posts/{date.year:04d}/{date.month:02d}/{date.day:02d}/"
+
+
 class DesignerAgent:
 
     @staticmethod
@@ -110,6 +117,7 @@ class DesignerAgent:
 
         preheader = DesignerAgent._extract_tldr(content) or topic
         read_min  = DesignerAgent._reading_minutes(content)
+        site_cta  = DesignerAgent._render_site_cta(date)
 
         raw = f"""<!DOCTYPE html>
 <html lang="th">
@@ -142,6 +150,10 @@ body{{font-family:'CordiaUPC','Cordia New','Sarabun','Segoe UI',sans-serif;backg
 .glossary-list li{{margin:6px 0;color:#555;font-size:18px}}
 .ftr{{background:#ECEFF1;padding:16px 24px;font-size:16px;color:#546E7A;border-top:1px solid #ddd}}
 .ftr a{{color:{color};text-decoration:none;margin-right:12px}}
+.ftr-cta{{margin:0 0 14px;border-collapse:separate;border-spacing:8px 0}}
+.ftr-cta td{{padding:0}}
+.ftr-cta a{{display:block;background:{color};color:#fff!important;text-decoration:none;text-align:center;padding:12px 16px;border-radius:6px;font-size:17px;font-weight:600}}
+.ftr-cta a.alt{{background:#fff;color:{color}!important;border:1px solid {color}}}
 .ftr-mission{{margin-top:12px;padding-top:10px;border-top:1px solid #cfd8dc;color:#546E7A;font-style:italic}}
 .preheader{{display:none!important;visibility:hidden;opacity:0;color:transparent;height:0;width:0;font-size:1px;line-height:1px;mso-hide:all;overflow:hidden}}
 .hero-img{{margin:0;padding:0;line-height:0;background:#FAFAFA;border-bottom:1px solid #E0E0E0}}
@@ -159,6 +171,7 @@ body{{font-family:'CordiaUPC','Cordia New','Sarabun','Segoe UI',sans-serif;backg
   <div class="bd">{body}</div>
   {hero_image}
   <div class="ftr">
+    {site_cta}
     <div class="ftr-mission">PTT NGR ESP · Consultant Academy — ยกระดับทีมจากผู้เชี่ยวชาญ สู่ Energy Consultant ที่ลูกค้าไว้วางใจ</div>
   </div>
 </div>
@@ -170,6 +183,25 @@ body{{font-family:'CordiaUPC','Cordia New','Sarabun','Segoe UI',sans-serif;backg
         except Exception as e:
             logger.warning(f"premailer inline failed, returning raw HTML: {e}")
             return raw
+
+    @staticmethod
+    def _render_site_cta(date) -> str:
+        """Two-button CTA pointing at the KM site. Returns empty string
+        when SITE_BASE_URL is unset, preserving the no-site behavior
+        exactly. Uses a <table> layout because Outlook ignores flexbox
+        and renders side-by-side buttons reliably via table cells."""
+        base = os.getenv("SITE_BASE_URL", "").rstrip("/")
+        if not base:
+            return ""
+        post_url = f"{base}{post_url_path(date)}"
+        return (
+            '<table role="presentation" class="ftr-cta" width="100%">'
+            '<tr>'
+            f'<td width="50%"><a href="{post_url}">🌐 อ่านบนเว็บ</a></td>'
+            f'<td width="50%"><a class="alt" href="{base}/">📚 คลังความรู้</a></td>'
+            '</tr>'
+            '</table>'
+        )
 
     @staticmethod
     def _md_to_html(md: str) -> str:

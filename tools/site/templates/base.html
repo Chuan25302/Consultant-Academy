@@ -1,0 +1,52 @@
+{#-
+  Base shell — Thai-optimized typography + sticky nav + accessibility skip-link.
+  Relative-link safety: every page passes `rel` so the same HTML works at any
+  base path (e.g. https://user.github.io/Consultant-Academy/).
+-#}<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<meta name="theme-color" content="#0D47A1">
+<title>{{ title }} · Consultant Academy</title>
+<meta name="description" content="{{ description|default('คลังความรู้ Consultant Academy — PTT NGR ESP') }}">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai+Looped:wght@400;500;600;700;800&display=swap">
+
+<link rel="stylesheet" href="{{ rel }}assets/style.css">
+{% block extra_head %}{% endblock %}
+</head>
+<body>
+<a class="skip" href="#main">ข้ามไปยังเนื้อหา</a>
+
+<header class="site-hdr">
+  <div class="wrap">
+    <a class="brand" href="{{ rel }}">
+      <span class="brand-mark">📚</span>
+      <span class="brand-name">Consultant Academy</span>
+      <span class="brand-sub">PTT NGR ESP</span>
+    </a>
+    <nav class="site-nav" aria-label="หลัก">
+      <a href="{{ rel }}">🏠 หน้าแรก</a>
+      <a href="{{ rel }}archive/">🗓️ ตามวันที่</a>
+      <a href="{{ rel }}pillars/">🧭 ตาม Pillar</a>
+      <a href="{{ rel }}clusters/">🎯 ตามเรื่อง</a>
+    </nav>
+  </div>
+</header>
+
+<main id="main" class="site-main wrap">
+{{ body|safe }}
+</main>
+
+<footer class="site-ftr">
+  <div class="wrap">
+    <div><span class="brand-mark">📚</span> <strong>PTT NGR ESP · Consultant Academy</strong></div>
+    <div class="muted">ยกระดับทีมจากผู้เชี่ยวชาญ สู่ Energy Consultant ที่ลูกค้าไว้วางใจ</div>
+    <div class="muted small">อัปเดตอัตโนมัติทุกเช้า · {{ generated_at }}</div>
+  </div>
+</footer>
+</body>
+</html>

@@ -97,3 +97,37 @@ def test_unknown_pillar_falls_back_to_technical():
 def test_md_to_html_idempotent_on_empty():
     html = DesignerAgent._md_to_html("")
     assert html == ""
+
+
+def test_site_cta_absent_by_default(monkeypatch):
+    """Without SITE_BASE_URL the email matches its prior shape exactly —
+    no surprise buttons appear in environments that haven't opted in."""
+    monkeypatch.delenv("SITE_BASE_URL", raising=False)
+    html = DesignerAgent.create_email("test", _meta())
+    assert "อ่านบนเว็บ" not in html
+    assert "คลังความรู้" not in html
+
+
+def test_site_cta_renders_when_env_set(monkeypatch):
+    monkeypatch.setenv("SITE_BASE_URL", "https://example.com/academy")
+    html = DesignerAgent.create_email("test", _meta())
+    assert "อ่านบนเว็บ" in html
+    assert "คลังความรู้" in html
+    # Date 2024-05-06 → predictable URL the worker can also generate.
+    assert "https://example.com/academy/posts/2024/05/06/" in html
+    assert 'href="https://example.com/academy/"' in html
+
+
+def test_site_cta_trims_trailing_slash(monkeypatch):
+    """A site URL with a trailing slash should not produce '//posts/'."""
+    monkeypatch.setenv("SITE_BASE_URL", "https://example.com/academy/")
+    html = DesignerAgent.create_email("test", _meta())
+    assert "//posts/" not in html
+    assert "/academy/posts/2024/05/06/" in html
+
+
+def test_post_url_path_format():
+    from datetime import datetime
+    from src.agents.designer_agent import post_url_path
+    d = datetime(2026, 1, 5, tzinfo=TZ)
+    assert post_url_path(d) == "/posts/2026/01/05/"

@@ -30,6 +30,8 @@ test_images/
 # Local preview artifacts
 preview_email.html
 preview_email_new.html
+docs_preview/
+_site/
 
 # OS / editors
 .DS_Store

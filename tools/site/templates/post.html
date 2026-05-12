@@ -1,0 +1,41 @@
+{#-
+  Post page — reading-optimized column + meta strip + related sidebar
+  carrying the learning-path motif ("next in series").
+-#}<article class="post">
+  <p class="crumbs">
+    <a href="{{ rel }}">หน้าแรก</a>
+    <span class="sep">›</span>
+    <a href="{{ rel }}archive/{{ post.year }}/{{ '%02d'|format(post.month) }}/">{{ post.month_th }} {{ post.year_be }}</a>
+    <span class="sep">›</span>
+    <a href="{{ rel }}pillars/{{ post.pillar_slug }}/">{{ post.pillar_label }}</a>
+  </p>
+
+  <div class="post-meta-row">
+    <span class="chip pillar-{{ post.pillar_slug }}">{{ post.pillar_icon }} {{ post.pillar_label }}</span>
+    {% if post.level %}<span class="lvl" data-l="{{ post.level }}">L{{ post.level }}</span>{% endif %}
+    {% if post.cluster and post.cluster != "General" %}
+      <a class="chip" href="{{ rel }}clusters/{{ post.cluster_slug }}/">🎯 {{ post.cluster }}</a>
+    {% endif %}
+    {% if post.industry and post.industry not in ("General","ทั่วไป") %}
+      <span class="muted">· 🏭 {{ post.industry }}</span>
+    {% endif %}
+    <span class="muted">· 📅 {{ post.date_th }}</span>
+  </div>
+
+  <h1 class="post-title">{{ post.title }}</h1>
+
+  <div class="post-body">
+    {{ post.body_html|safe }}
+  </div>
+</article>
+
+{% if related %}
+<aside class="related">
+  <span class="eyebrow">🪜 บทถัดไปในเรื่องนี้</span>
+  <h2>เรื่องที่เกี่ยวข้อง — {{ post.cluster }}</h2>
+  <p class="related-lede">ชุดความรู้ในเรื่องเดียวกัน เรียงตามวันที่ใหม่ก่อน — ใช้เป็น learning path ของคุณ</p>
+  <div class="cards compact">
+    {% for p in related %}{% include "_card.html" %}{% endfor %}
+  </div>
+</aside>
+{% endif %}

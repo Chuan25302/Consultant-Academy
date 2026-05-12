@@ -1,0 +1,42 @@
+{#-
+  Generic listing template — used by archive, pillar, cluster pages.
+  Optional `learn_path` block surfaces L1→L3 progression on cluster pages
+  to nudge readers toward sequential learning.
+-#}<section class="listing-hdr">
+  <p class="crumbs">{% for c in crumbs %}<a href="{{ c.href }}">{{ c.label }}</a>{% if not loop.last %} <span class="sep">›</span> {% endif %}{% endfor %}</p>
+  <h1>{{ heading }}</h1>
+  {% if subheading %}<p class="sub">{{ subheading }}</p>{% endif %}
+  {% if intro %}<p class="intro">{{ intro }}</p>{% endif %}
+</section>
+
+{% if learn_path %}
+<section class="learn-path">
+  <span class="eyebrow">🪜 Learning path</span>
+  <p>{{ learn_path.intro }}</p>
+  <div class="ladder">
+    {% for step in learn_path.steps %}
+      <span class="step"><strong>L{{ step.level }}</strong> · {{ step.count }} บทความ</span>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+{% if child_links %}
+<section class="block">
+  <ul class="chiplist">
+    {% for c in child_links %}
+      <li><a class="chip" href="{{ c.href }}">{{ c.label }} <span class="count">{{ c.count }}</span></a></li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+
+{% if posts %}
+<section class="block">
+  <div class="cards">
+    {% for p in posts %}{% include "_card.html" %}{% endfor %}
+  </div>
+</section>
+{% else %}
+{% if not child_links %}<p class="muted">(ยังไม่มีบทความในหน้านี้)</p>{% endif %}
+{% endif %}

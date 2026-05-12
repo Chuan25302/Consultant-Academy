@@ -1,0 +1,65 @@
+{#-
+  Homepage — hero with motivation copy, latest articles, learning entry,
+  pillar grid, top clusters. Goal: make the reader want to dive in.
+-#}<section class="hero">
+  <span class="eyebrow">📚 Knowledge that compounds daily</span>
+  <h1>เรียนรู้วันละ 1 บทความ<br>ก้าวสู่ Energy Consultant ที่ลูกค้าไว้วางใจ</h1>
+  <p class="hero-lede">
+    คลังความรู้ที่ทีม PTT NGR ESP ใช้ยกระดับตัวเองทุกวัน —
+    ตั้งแต่เทคนิคเชิงลึก กรอบวิเคราะห์ มาตรฐานอุตสาหกรรม จนถึงทักษะการสื่อสารระดับที่ปรึกษา
+  </p>
+  <div class="hero-stats">
+    <span>📰 <strong>{{ total_posts }}</strong> บทความ</span>
+    <span>·</span>
+    <span>🧭 <strong>{{ pillars|length }}</strong> เสาความรู้</span>
+    <span>·</span>
+    <span>🎯 <strong>{{ clusters|length }}</strong> เรื่อง</span>
+  </div>
+  {% if latest %}
+  <div class="hero-cta">
+    <a class="btn warm" href="{{ latest[0].url.lstrip('/') }}">🌟 อ่านบทความวันนี้</a>
+    <a class="btn ghost" href="clusters/">เลือกหัวข้อที่สนใจ →</a>
+  </div>
+  {% endif %}
+</section>
+
+<section class="block">
+  <div class="block-hdr">
+    <h2>📰 บทความล่าสุด</h2>
+    <span class="more"><a href="archive/">ดูทั้งหมดตามวันที่ →</a></span>
+  </div>
+  <div class="cards">
+    {% for p in latest %}{% include "_card.html" %}{% endfor %}
+  </div>
+</section>
+
+<section class="block">
+  <div class="block-hdr">
+    <h2>🧭 6 เสาความรู้</h2>
+    <span class="more"><a href="pillars/">ทั้งหมด →</a></span>
+  </div>
+  <div class="pillar-grid">
+    {% for p in pillars %}
+    <a class="pillar-tile pillar-{{ p.slug }}" href="pillars/{{ p.slug }}/">
+      <div class="pic">{{ p.icon }}</div>
+      <h3>{{ p.label }}</h3>
+      <p>{{ p.count }} บทความ</p>
+    </a>
+    {% endfor %}
+  </div>
+</section>
+
+<section class="block">
+  <div class="block-hdr">
+    <h2>🎯 เรื่องยอดนิยม</h2>
+    <span class="more"><a href="clusters/">ทุกเรื่อง →</a></span>
+  </div>
+  <p class="muted" style="margin: -10px 0 14px; font-size: 17px;">
+    แต่ละเรื่องรวบรวมบทความเรียงจาก L1 พื้นฐาน → L3 ลึก ให้คุณไล่อ่านเป็นชุดได้
+  </p>
+  <ul class="chiplist">
+    {% for c in top_clusters %}
+      <li><a class="chip" href="clusters/{{ c.slug }}/">{{ c.name }} <span class="count">{{ c.count }}</span></a></li>
+    {% endfor %}
+  </ul>
+</section>

@@ -34,6 +34,12 @@ class Settings:
 
     SLACK_WEBHOOK_URL: str = os.getenv("SLACK_WEBHOOK_URL", "")
 
+    # KM site base URL (e.g. https://chuan25302.github.io/Consultant-Academy).
+    # When set, email footer shows "อ่านบนเว็บ" + "คลังความรู้" buttons that
+    # link into the static site. Leave empty to disable both buttons —
+    # pipeline behavior is unchanged.
+    SITE_BASE_URL: str = os.getenv("SITE_BASE_URL", "").rstrip("/")
+
     # Default model for all agents. Override per-agent with
     # GEMINI_MODEL_<AGENT> env vars (RESEARCH | EXPERT | INDUSTRY |
     # TRANSLATOR | RECAP). Any model the google-genai SDK accepts.
