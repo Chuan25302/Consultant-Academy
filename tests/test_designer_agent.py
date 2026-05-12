@@ -131,3 +131,38 @@ def test_post_url_path_format():
     from src.agents.designer_agent import post_url_path
     d = datetime(2026, 1, 5, tzinfo=TZ)
     assert post_url_path(d) == "/posts/2026/01/05/"
+
+
+def test_header_has_background_color_fallback_for_outlook():
+    """Outlook strips CSS gradients but honors `background-color`. The
+    header must keep a solid color fallback so it doesn't render as a
+    blank white block in Outlook desktop."""
+    html = DesignerAgent.create_email("test", _meta())
+    # Either an inline `background-color:` (post-premailer) or a CSS rule
+    # with that property must be present alongside the gradient.
+    assert "background-color" in html
+    assert "linear-gradient" in html  # rich clients still get the gradient
+
+
+def test_km_banner_absent_without_site_base_url(monkeypatch):
+    """The .km-banner CSS rule is always present in <style>, but the
+    actual <div class="km-banner"> should not be emitted unless
+    SITE_BASE_URL is set."""
+    monkeypatch.delenv("SITE_BASE_URL", raising=False)
+    html = DesignerAgent.create_email("test", _meta())
+    assert 'class="km-banner"' not in html
+    assert "คลังความรู้ Consultant Academy" not in html
+
+
+def test_km_banner_appears_above_body_when_env_set(monkeypatch):
+    """When SITE_BASE_URL is set, the top banner is rendered and sits
+    between the header (.hdr) and the body (.bd), so readers see it
+    before scrolling into the article."""
+    monkeypatch.setenv("SITE_BASE_URL", "https://example.com/academy")
+    html = DesignerAgent.create_email("test", _meta())
+    assert 'class="km-banner"' in html
+    assert 'href="https://example.com/academy/"' in html
+    # Position check: banner appears before the body div in the source
+    banner_idx = html.find('class="km-banner"')
+    body_idx   = html.find('class="bd"')
+    assert banner_idx > 0 and body_idx > 0 and banner_idx < body_idx

@@ -118,6 +118,7 @@ class DesignerAgent:
         preheader = DesignerAgent._extract_tldr(content) or topic
         read_min  = DesignerAgent._reading_minutes(content)
         site_cta  = DesignerAgent._render_site_cta(date)
+        km_banner = DesignerAgent._render_km_banner()
 
         raw = f"""<!DOCTYPE html>
 <html lang="th">
@@ -127,9 +128,16 @@ class DesignerAgent:
 <style>
 body{{font-family:'CordiaUPC','Cordia New','Sarabun','Segoe UI',sans-serif;background:#F5F5F5;color:#333;line-height:1.75;margin:0;padding:0}}
 .wrap{{max-width:620px;margin:0 auto;background:#fff}}
-.hdr{{background:linear-gradient(135deg,{color} 0%,rgba({rgba},0.8) 100%);color:#fff;padding:28px 24px}}
+/* Outlook ignores `background:` shorthand when it contains a gradient,
+   so the header would render as plain white. Split into background-color
+   (the solid fallback Outlook will use) + background-image (the gradient
+   modern clients honor). Keeps the rich look in Gmail/Apple Mail without
+   the white-header bug in Outlook desktop. */
+.hdr{{background-color:{color};background-image:linear-gradient(135deg,{color} 0%,rgba({rgba},0.8) 100%);color:#fff;padding:28px 24px}}
 .hdr h2{{font-size:24px;font-weight:700;margin:6px 0;line-height:1.4;color:#fff}}
 .meta{{font-size:16px;opacity:0.85;margin-top:4px;color:#fff}}
+.km-banner{{background:#F8F9FB;border-bottom:1px solid #E1E5EA;padding:12px 24px;font-size:16px;color:#546E7A;text-align:center}}
+.km-banner a{{color:{color};font-weight:700;text-decoration:none}}
 .bd{{padding:28px 24px}}
 .bd h2{{color:{color};font-size:24px;border-left:4px solid {color};padding-left:10px;margin:24px 0 10px}}
 .bd h3{{color:{color};font-size:20px;margin:18px 0 8px}}
@@ -168,6 +176,7 @@ body{{font-family:'CordiaUPC','Cordia New','Sarabun','Segoe UI',sans-serif;backg
     <h2>{topic}</h2>
     <div class="meta">PTT NGR ESP · Consultant Academy · {date_th} · อ่าน {read_min} นาที</div>
   </div>
+  {km_banner}
   <div class="bd">{body}</div>
   {hero_image}
   <div class="ftr">
@@ -183,6 +192,22 @@ body{{font-family:'CordiaUPC','Cordia New','Sarabun','Segoe UI',sans-serif;backg
         except Exception as e:
             logger.warning(f"premailer inline failed, returning raw HTML: {e}")
             return raw
+
+    @staticmethod
+    def _render_km_banner() -> str:
+        """Small top-of-email banner pointing at the KM archive home.
+        Sits between the header and body — high enough up that recipients
+        notice it before scrolling. Returns empty string when SITE_BASE_URL
+        is unset, so the no-site behavior remains identical."""
+        base = os.getenv("SITE_BASE_URL", "").rstrip("/")
+        if not base:
+            return ""
+        return (
+            '<div class="km-banner">'
+            f'📚 บทความนี้เก็บอยู่ใน <a href="{base}/">คลังความรู้ Consultant Academy</a> '
+            '— คลิกเพื่อดูบทความเก่าทั้งหมด'
+            '</div>'
+        )
 
     @staticmethod
     def _render_site_cta(date) -> str:
@@ -260,7 +285,8 @@ body{{font-family:'CordiaUPC','Cordia New','Sarabun','Segoe UI',sans-serif;backg
 <style>
 body{{font-family:'CordiaUPC','Cordia New','Sarabun','Segoe UI',sans-serif;background:#F5F5F5;color:#333;line-height:1.75;margin:0;padding:0}}
 .wrap{{max-width:680px;margin:0 auto;background:#fff}}
-.hdr{{background:linear-gradient(135deg,{color} 0%,rgba({rgba},0.85) 100%);color:#fff;padding:32px 28px}}
+/* Outlook gradient fallback — see daily-email .hdr comment. */
+.hdr{{background-color:{color};background-image:linear-gradient(135deg,{color} 0%,rgba({rgba},0.85) 100%);color:#fff;padding:32px 28px}}
 .hdr .week-tag{{display:inline-block;background:rgba(255,255,255,0.18);padding:6px 14px;border-radius:20px;font-size:16px;font-weight:700;margin-bottom:10px;letter-spacing:1px;color:#fff}}
 .hdr h1{{font-size:30px;font-weight:700;margin:4px 0 6px;color:#fff;line-height:1.3}}
 .hdr .range{{font-size:16px;opacity:0.9;color:#fff}}
