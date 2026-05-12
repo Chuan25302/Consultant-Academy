@@ -13,7 +13,7 @@ import pytest
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from tools.build_site import Post, render_site, slugify
+from tools.build_site import Post, is_meaningful_cluster, render_site, slugify
 
 
 # ---------- slug helper -----------------------------------------------------
@@ -28,6 +28,40 @@ from tools.build_site import Post, render_site, slugify
 ])
 def test_slugify_ascii(text, expected):
     assert slugify(text) == expected
+
+
+@pytest.mark.parametrize("name,expected", [
+    ("Pumps & Compressors", True),
+    ("Carbon Accounting", True),
+    ("ปั๊มหอยโข่ง", True),
+    ("General", False),        # default bucket — not a curated topic
+    ("1", False),              # calendar typo: numeric value
+    ("23", False),
+    ("", False),
+    (" ", False),
+    ("A", False),              # too short to be a meaningful label
+])
+def test_is_meaningful_cluster(name, expected):
+    assert is_meaningful_cluster(name) is expected
+
+
+def test_render_skips_junk_cluster_page(tmp_path):
+    """A post with cluster='1' (calendar typo) must NOT generate a
+    /clusters/1/ page, and the chip on the post must be hidden so
+    readers don't see a useless '🎯 1' link."""
+    posts = [
+        Post(date="2026-05-12", title="Sample", pillar="TECHNICAL",
+             cluster="1", level=1, industry="General", keywords=[],
+             body_html='<div class="wrap"><div class="bd"><p>body</p></div></div>',
+             tldr="x"),
+    ]
+    out = tmp_path / "docs"
+    render_site(posts, out)
+    assert not (out / "clusters" / "1" / "index.html").exists()
+    post_html = (out / "posts" / "2026" / "05" / "12" / "index.html").read_text("utf-8")
+    # The chip would link to /clusters/1/ if rendered — confirm it's not there
+    assert 'clusters/1/' not in post_html
+    assert "🎯 1" not in post_html
 
 
 def test_slugify_thai_falls_back_to_hash():

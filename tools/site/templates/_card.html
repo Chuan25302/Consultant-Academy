@@ -6,6 +6,6 @@
   <div class="card-meta">
     <span>📅 {{ p.date_th }}</span>
     {% if p.level %}<span class="lvl" data-l="{{ p.level }}">L{{ p.level }}</span>{% endif %}
-    {% if p.cluster and p.cluster != "General" %}<span>· 🎯 {{ p.cluster }}</span>{% endif %}
+    {% if p.show_cluster %}<span>· 🎯 {{ p.cluster }}</span>{% endif %}
   </div>
 </a>

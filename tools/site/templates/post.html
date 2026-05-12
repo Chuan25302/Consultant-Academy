@@ -13,7 +13,7 @@
   <div class="post-meta-row">
     <span class="chip pillar-{{ post.pillar_slug }}">{{ post.pillar_icon }} {{ post.pillar_label }}</span>
     {% if post.level %}<span class="lvl" data-l="{{ post.level }}">L{{ post.level }}</span>{% endif %}
-    {% if post.cluster and post.cluster != "General" %}
+    {% if post.show_cluster %}
       <a class="chip" href="{{ rel }}clusters/{{ post.cluster_slug }}/">🎯 {{ post.cluster }}</a>
     {% endif %}
     {% if post.industry and post.industry not in ("General","ทั่วไป") %}

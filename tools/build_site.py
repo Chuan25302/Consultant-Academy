@@ -118,6 +118,32 @@ class Post:
 
     @property
     def cluster_slug(self) -> str: return slugify(self.cluster)
+    @property
+    def show_cluster(self) -> bool:
+        """Whether to surface this post's cluster in UI chips. Junk
+        cluster values (numeric placeholders, 'General') are kept on
+        the post for grouping logic but hidden from the reader."""
+        return is_meaningful_cluster(self.cluster)
+
+
+def is_meaningful_cluster(name: str) -> bool:
+    """A cluster passes if it has a name worth showing as a learning path.
+    Filters out:
+      - 'General' (catch-all bucket, not a real topic)
+      - empty / whitespace-only
+      - too-short labels (< 2 chars — likely a stray digit from calendar)
+      - all-digits ('1', '23' — meaningless as a topic name; usually a
+        calendar typo where someone wrote a number instead of a label)
+    Bad cluster names still appear as the post's own cluster on its page;
+    they just don't surface as browseable learning paths."""
+    if not name:
+        return False
+    s = name.strip()
+    if s == "General" or len(s) < 2:
+        return False
+    if s.isdigit():
+        return False
+    return True
 
 
 def slugify(text: str) -> str:
@@ -356,7 +382,7 @@ def render_site(posts: list[Post], output_dir: Path) -> None:
     )
     top_clusters = sorted(
         [{"slug": g.slug, "name": g.key, "count": g.count}
-         for g in by_cluster.values() if g.key != "General"],
+         for g in by_cluster.values() if is_meaningful_cluster(g.key)],
         key=lambda x: -x["count"],
     )[:12]
     home_body = index_tpl.render(
@@ -452,21 +478,35 @@ def render_site(posts: list[Post], output_dir: Path) -> None:
     # ---- cluster hub + per-cluster pages ---------------------------------
     cluster_links = sorted(
         [{"label": g.key, "href": f"{g.slug}/", "count": g.count}
-         for g in by_cluster.values() if g.key != "General"],
+         for g in by_cluster.values() if is_meaningful_cluster(g.key)],
         key=lambda x: -x["count"],
     )
+    if cluster_links:
+        cluster_sub = f"{len(cluster_links)} เรื่อง — แต่ละเรื่องคือ learning path เป็นชุด"
+        cluster_intro = "คลิกเรื่องที่สนใจ จะเห็นบทความเรียงจาก L1 พื้นฐาน → L3 ลึก พร้อมไล่อ่านเป็นซีรีส์"
+    else:
+        cluster_sub = "ยังไม่มีเรื่องที่จัดเป็นชุดให้อ่าน"
+        cluster_intro = (
+            "ต้องการให้บทความขึ้นที่นี่? เพิ่ม `cluster=<ชื่อเรื่อง>` ในไฟล์ Content Calendar "
+            "บน Drive เพื่อจัดบทความเข้าชุดความรู้เดียวกัน (เช่น cluster=Pumps & Compressors)"
+        )
     body = listing_tpl.render(
         rel="../",
         crumbs=[{"label": "หน้าแรก", "href": "../"}, {"label": "เรื่อง", "href": "./"}],
         heading="🎯 เลือกเรื่องที่อยากรู้",
-        subheading=f"{len(cluster_links)} เรื่อง — แต่ละเรื่องคือ learning path เป็นชุด",
-        intro="คลิกเรื่องที่สนใจ จะเห็นบทความเรียงจาก L1 พื้นฐาน → L3 ลึก พร้อมไล่อ่านเป็นซีรีส์",
+        subheading=cluster_sub,
+        intro=cluster_intro,
         child_links=cluster_links, posts=None,
     )
     _write(output_dir / "clusters" / "index.html",
            wrap(body, title="ตามเรื่อง", description="คลังบทความตามเรื่อง", depth=1))
 
     for cslug, g in by_cluster.items():
+        # Skip junk cluster names — no point generating /clusters/1/.
+        # The chip on each post is also hidden via show_cluster, so no
+        # broken links result from omitting these pages.
+        if not is_meaningful_cluster(g.key):
+            continue
         # Within a cluster: surface learning path L1 → L2 → L3 (newest first within each level)
         sorted_posts = sorted(
             g.posts,
@@ -503,9 +543,14 @@ def render_site(posts: list[Post], output_dir: Path) -> None:
 
     # ---- post pages -------------------------------------------------------
     for p in posts:
-        related = [r for r in by_cluster.get(p.cluster_slug, Group("", "", "")).posts
-                   if r.date != p.date]
-        related = sorted(related, key=lambda r: r.date, reverse=True)[:5]
+        # Only surface related posts when the cluster name is meaningful.
+        # For junk clusters (numeric placeholders) the related sidebar
+        # would have a useless "เรื่องที่เกี่ยวข้อง — 1" heading.
+        related = []
+        if is_meaningful_cluster(p.cluster):
+            related = [r for r in by_cluster.get(p.cluster_slug, Group("", "", "")).posts
+                       if r.date != p.date]
+            related = sorted(related, key=lambda r: r.date, reverse=True)[:5]
         body_html = post_tpl.render(rel="../../../../", post=p, related=related)
         out = output_dir / "posts" / f"{p.year:04d}" / f"{p.month:02d}" / f"{p.day:02d}" / "index.html"
         _write(out, wrap(body_html, title=p.title, description=p.tldr or p.title, depth=4))
