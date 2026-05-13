@@ -80,6 +80,7 @@ jobs:
           EMAIL_SENDER: ${{ secrets.EMAIL_SENDER }}
           EMAIL_APP_PASSWORD: ${{ secrets.EMAIL_APP_PASSWORD }}
           EMAIL_RECIPIENTS: ${{ secrets.EMAIL_RECIPIENTS }}
+          SITE_BASE_URL: ${{ secrets.SITE_BASE_URL }}
           GEMINI_MODEL: gemini-2.5-flash
           GEMINI_MODEL_RESEARCH: gemini-2.5-flash
           GEMINI_MODEL_EXPERT: gemini-2.5-pro
