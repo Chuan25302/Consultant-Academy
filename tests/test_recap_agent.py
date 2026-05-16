@@ -179,3 +179,44 @@ def test_prompt_has_four_sections_and_anti_hallucination_guard():
     assert "ใช้กับลูกค้าได้เลย" in sent_prompt
     # Anti-hallucination guard (free-form match — exact wording may vary):
     assert "ห้ามแต่ง" in sent_prompt or "อย่าแต่ง" in sent_prompt
+
+
+def test_multiple_emails_per_day_collapse_to_one_header():
+    """If a single Mon–Fri date has two [Email] files (re-run / backfill
+    case), the prompt should still have ONE day header for that date
+    with both bodies under it — not two repeated date headers."""
+    drive = MagicMock()
+
+    def list_by_prefix(prefix: str):
+        if prefix == "[Email] 2026-05-11":
+            return [
+                {"id": "id-mon-a", "name": f"{prefix} First.html"},
+                {"id": "id-mon-b", "name": f"{prefix} Second.html"},
+            ]
+        return []
+
+    drive.list_files_by_prefix.side_effect = list_by_prefix
+    drive.download_file.side_effect = lambda fid: {
+        "id-mon-a": "<p>First body</p>",
+        "id-mon-b": "<p>Second body</p>",
+    }.get(fid, "")
+    drive.get_or_create_folder.return_value = "folder"
+
+    gemini = MagicMock()
+    gemini.generate.return_value = "## stub"
+
+    with patch("src.agents.recap_agent.DesignerAgent.create_recap_email",
+               return_value="<html>r</html>"), \
+         patch("src.agents.recap_agent.send_daily_email", return_value=True):
+        RecapAgent(gemini, drive, _fake_settings()).generate_and_upload(
+            today=_saturday_2026_05_16(), dry_run=False,
+        )
+
+    sent_prompt = gemini.generate.call_args.args[0]
+    # Both bodies present:
+    assert "First body" in sent_prompt
+    assert "Second body" in sent_prompt
+    # But only ONE "11/5" date header (count occurrences of the day-header substring):
+    assert sent_prompt.count("11/5") == 1, (
+        f"expected one date header for Monday, got {sent_prompt.count('11/5')}"
+    )

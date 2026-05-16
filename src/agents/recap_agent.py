@@ -121,15 +121,20 @@ class RecapAgent:
             prefix = f"[Email] {day}"
             files = self.drive.list_files_by_prefix(prefix)
             day_topic = "—"
+            day_bodies: list[str] = []
             for f in files:
                 title = re.sub(r"\[Email\] \d{4}-\d{2}-\d{2} (.+)\.html",
                                r"\1", f["name"])
                 day_topic = title  # last one wins if a day has multiple
                 body_text = _build_day_digest(f, self.drive)
                 if body_text:
-                    day_digests.append(
-                        f"## {WEEKDAY_TH_SHORT[d.weekday()]} {d.day}/{d.month} — {title}\n\n{body_text}"
-                    )
+                    day_bodies.append(body_text)
+
+            if day_bodies:
+                day_digests.append(
+                    f"## {WEEKDAY_TH_SHORT[d.weekday()]} {d.day}/{d.month} — {day_topic}\n\n"
+                    + "\n\n".join(day_bodies)
+                )
             daily_topics.append({
                 "date_th": f"{d.day}/{d.month}",
                 "day_th":  WEEKDAY_TH_SHORT[d.weekday()],
