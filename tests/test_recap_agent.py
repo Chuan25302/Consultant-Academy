@@ -265,3 +265,53 @@ def test_dry_run_skips_upload_and_email():
 
     drive.upload.assert_not_called()
     sent_email.assert_not_called()
+
+
+def test_partial_download_failure_still_generates_recap():
+    """If one Mon-Fri download fails, the recap should still generate
+    from the other four - the team's weekly digest is more useful with
+    4 days than zero days."""
+    bodies = {
+        "2026-05-11": "<p>Monday OK</p>",
+        "2026-05-12": "<p>Tuesday OK</p>",
+        "2026-05-13": None,                # this day will raise on download
+        "2026-05-14": "<p>Thursday OK</p>",
+        "2026-05-15": "<p>Friday OK</p>",
+    }
+    drive = MagicMock()
+
+    def list_by_prefix(prefix: str):
+        date = prefix.split(" ", 1)[1]
+        if date in bodies:
+            return [{"id": f"id-{date}", "name": f"{prefix} T.html"}]
+        return []
+
+    def download(file_id: str):
+        date = file_id.replace("id-", "")
+        if bodies[date] is None:
+            raise RuntimeError("Drive 503 simulated")
+        return bodies[date]
+
+    drive.list_files_by_prefix.side_effect = list_by_prefix
+    drive.download_file.side_effect = download
+    drive.get_or_create_folder.return_value = "folder_id"
+
+    gemini = MagicMock()
+    gemini.generate.return_value = "## stub"
+
+    with patch("src.agents.recap_agent.DesignerAgent.create_recap_email",
+               return_value="<html>r</html>"), \
+         patch("src.agents.recap_agent.send_daily_email", return_value=True):
+        RecapAgent(gemini, drive, _fake_settings()).generate_and_upload(
+            today=_saturday_2026_05_16(), dry_run=False,
+        )
+
+    # The recap still went out:
+    drive.upload.assert_called_once()
+    # And the prompt had four days of body content (not five, not zero):
+    sent_prompt = gemini.generate.call_args.args[0]
+    assert "Monday OK" in sent_prompt
+    assert "Tuesday OK" in sent_prompt
+    assert "Thursday OK" in sent_prompt
+    assert "Friday OK" in sent_prompt
+    assert "503" not in sent_prompt  # error wasn't accidentally fed to LLM
