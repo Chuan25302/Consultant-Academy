@@ -1,6 +1,8 @@
 """
-Recap Agent — runs every Friday (or whenever pillar=RECAP).
-Finds [Email] files from Mon–Thu in Drive, summarizes, uploads [Recap].
+Recap Agent — runs on RECAP days (typically Saturday) via the daily routine.
+Downloads Mon–Fri [Email] archive bodies, extracts a 4-section knowledge
+capture (Takeaways / Knowledge Capture / Formulas & Heuristics / Apply)
+via Gemini, uploads [Recap] HTML to Drive, and emails it to the team.
 """
 import html as html_module
 import logging
@@ -17,6 +19,10 @@ logger = logging.getLogger(__name__)
 
 _STYLE_OR_SCRIPT_RE = re.compile(
     r"<(style|script)\b[^>]*>.*?</\1>", re.DOTALL | re.IGNORECASE
+)
+_CHROME_DIV_RE = re.compile(
+    r'<div\s+class="(?:preheader|km-banner|ftr|meta)"[^>]*>.*?</div>',
+    re.DOTALL | re.IGNORECASE,
 )
 _BLOCK_CLOSE_RE = re.compile(
     r"</(p|h1|h2|h3|h4|h5|h6|li|div)\s*>", re.IGNORECASE
@@ -40,7 +46,8 @@ def _strip_html_to_text(html_str: str | None) -> str:
     """
     if not html_str:
         return ""
-    text = _STYLE_OR_SCRIPT_RE.sub("", html_str)
+    text = _CHROME_DIV_RE.sub("", html_str)
+    text = _STYLE_OR_SCRIPT_RE.sub("", text)
     text = _BLOCK_CLOSE_RE.sub("\n", text)
     text = _BR_OR_HR_RE.sub("\n", text)
     text = _ANY_TAG_RE.sub("", text)

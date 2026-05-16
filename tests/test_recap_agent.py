@@ -87,6 +87,24 @@ def test_build_day_digest_returns_none_on_empty_file():
     assert _build_day_digest(file_dict, drive) is None
 
 
+def test_strip_html_removes_email_chrome():
+    """Email archive HTML wraps boilerplate (preheader, banner, footer)
+    in known classes — those should not bleed into the LLM prompt."""
+    html = '''
+    <div class="preheader">hidden inbox preview text</div>
+    <div class="km-banner">📖 อ่านบทความก่อนหน้า</div>
+    <p>Real article body</p>
+    <div class="ftr">PTT NGR ESP · footer</div>
+    <div class="meta">Tue 12/5 · อ่าน 3 นาที</div>
+    '''
+    out = _strip_html_to_text(html)
+    assert "Real article body" in out
+    assert "preview text" not in out
+    assert "อ่านบทความก่อนหน้า" not in out
+    assert "footer" not in out
+    assert "Tue 12/5" not in out
+
+
 # ---------- RecapAgent.generate_and_upload ---------------------------------
 
 from src.agents.recap_agent import RecapAgent  # noqa: E402
