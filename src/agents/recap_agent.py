@@ -2,6 +2,7 @@
 Recap Agent — runs every Friday (or whenever pillar=RECAP).
 Finds [Email] files from Mon–Thu in Drive, summarizes, uploads [Recap].
 """
+import html as html_module
 import logging
 import re
 from datetime import datetime, timedelta
@@ -12,6 +13,40 @@ from src.integrations.drive_api import DriveAPI
 from src.integrations.gemini_client import GeminiClient
 
 logger = logging.getLogger(__name__)
+
+_STYLE_OR_SCRIPT_RE = re.compile(
+    r"<(style|script)\b[^>]*>.*?</\1>", re.DOTALL | re.IGNORECASE
+)
+_BLOCK_CLOSE_RE = re.compile(
+    r"</(p|h1|h2|h3|h4|h5|h6|li|div)\s*>", re.IGNORECASE
+)
+_BR_OR_HR_RE = re.compile(r"<(br|hr)\s*/?>", re.IGNORECASE)
+_ANY_TAG_RE = re.compile(r"<[^>]+>")
+_INLINE_WS_RE = re.compile(r"[ \t]+")
+
+
+def _strip_html_to_text(html_str: str | None) -> str:
+    """Convert an email-style HTML document to plain text suitable as
+    LLM input.
+
+    - Removes <style>/<script> blocks entirely (their content is not
+      article content; feeding CSS to Gemini wastes tokens).
+    - Replaces block-level closing tags with newlines so section
+      structure (H2 headings, paragraphs, list items) survives the
+      tag strip and the LLM can see where one section ends.
+    - Decodes HTML entities so `&amp;` reads as `&`.
+    - Collapses internal runs of spaces/tabs and drops blank lines.
+    """
+    if not html_str:
+        return ""
+    text = _STYLE_OR_SCRIPT_RE.sub("", html_str)
+    text = _BLOCK_CLOSE_RE.sub("\n", text)
+    text = _BR_OR_HR_RE.sub("\n", text)
+    text = _ANY_TAG_RE.sub("", text)
+    text = html_module.unescape(text)
+    lines = [_INLINE_WS_RE.sub(" ", ln).strip() for ln in text.splitlines()]
+    return "\n".join(ln for ln in lines if ln)
+
 
 WEEKDAY_TH_SHORT = ["จ", "อ", "พ", "พฤ", "ศ", "ส", "อา"]
 
