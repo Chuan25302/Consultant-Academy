@@ -51,3 +51,35 @@ def test_strip_html_decodes_entities():
 def test_strip_html_handles_empty_and_none():
     assert _strip_html_to_text("") == ""
     assert _strip_html_to_text(None) == ""
+
+
+# ---------- _build_day_digest ----------------------------------------------
+
+from src.agents.recap_agent import _build_day_digest  # noqa: E402
+
+
+def test_build_day_digest_returns_stripped_body():
+    drive = MagicMock()
+    drive.download_file.return_value = "<p>Pump efficiency = head × flow / power</p>"
+    file_dict = {"id": "abc123", "name": "[Email] 2026-05-11 Pump basics.html"}
+
+    digest = _build_day_digest(file_dict, drive)
+
+    drive.download_file.assert_called_once_with("abc123")
+    assert digest == "Pump efficiency = head × flow / power"
+
+
+def test_build_day_digest_returns_none_on_download_failure():
+    drive = MagicMock()
+    drive.download_file.side_effect = RuntimeError("Drive 503")
+    file_dict = {"id": "x", "name": "[Email] 2026-05-12 Y.html"}
+
+    assert _build_day_digest(file_dict, drive) is None
+
+
+def test_build_day_digest_returns_none_on_empty_file():
+    drive = MagicMock()
+    drive.download_file.return_value = ""
+    file_dict = {"id": "x", "name": "[Email] 2026-05-12 Y.html"}
+
+    assert _build_day_digest(file_dict, drive) is None
