@@ -51,7 +51,7 @@ def main():
 
     print(f"\n✅ Token saved to {TOKEN_FILE}")
     print("\nNext: add the token as a GitHub Secret named GOOGLE_OAUTH_TOKEN_JSON")
-    print(f"  Copy this command (PowerShell):")
+    print("  Copy this command (PowerShell):")
     print(f'  Get-Content {TOKEN_FILE} | gh secret set GOOGLE_OAUTH_TOKEN_JSON')
 
 

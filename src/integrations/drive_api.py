@@ -32,8 +32,8 @@ class DriveAPI:
     def _init(self):
         oauth_file = getattr(self.settings, "GOOGLE_OAUTH_TOKEN_FILE", "oauth-token.json")
         if Path(oauth_file).exists():
-            from google.oauth2.credentials import Credentials
             from google.auth.transport.requests import Request
+            from google.oauth2.credentials import Credentials
             with open(oauth_file) as f:
                 token_data = json.load(f)
             creds = Credentials(

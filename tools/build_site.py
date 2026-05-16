@@ -16,7 +16,6 @@ CLI:
 from __future__ import annotations
 
 import argparse
-import logging
 import re
 import shutil
 import sys
@@ -474,7 +473,7 @@ def render_site(posts: list[Post], output_dir: Path) -> None:
     _write(output_dir / "pillars" / "index.html",
            wrap(body, title="6 เสาความรู้", description="คลังบทความตามเสาหลัก", depth=1))
 
-    for pillar_key, g in by_pillar.items():
+    for _pillar_key, g in by_pillar.items():
         sorted_posts = sorted(g.posts, key=lambda p: p.date, reverse=True)
         body = listing_tpl.render(
             rel="../../",
@@ -516,7 +515,7 @@ def render_site(posts: list[Post], output_dir: Path) -> None:
     _write(output_dir / "clusters" / "index.html",
            wrap(body, title="ตามเรื่อง", description="คลังบทความตามเรื่อง", depth=1))
 
-    for cslug, g in by_cluster.items():
+    for _cslug, g in by_cluster.items():
         # Skip junk cluster names — no point generating /clusters/1/.
         # The chip on each post is also hidden via show_cluster, so no
         # broken links result from omitting these pages.
