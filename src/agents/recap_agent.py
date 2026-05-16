@@ -48,16 +48,16 @@ def _strip_html_to_text(html_str: str | None) -> str:
     return "\n".join(ln for ln in lines if ln)
 
 
-def _build_day_digest(file: dict, drive) -> str | None:
+def _build_day_digest(file_meta: dict, drive) -> str | None:
     """Download a Mon–Fri email archive and return its body as plain
     text. Returns None when the download fails or the file is empty,
     so the caller can simply skip that day rather than crashing the
     whole recap run."""
     try:
-        raw = drive.download_file(file["id"])
+        raw = drive.download_file(file_meta["id"])
     except Exception as e:
         logger.warning(
-            f"Could not download {file.get('name', file.get('id'))} for recap: {e}"
+            f"Could not download {file_meta.get('name', file_meta.get('id'))} for recap: {e}"
         )
         return None
     if not raw:
