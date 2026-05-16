@@ -220,3 +220,48 @@ def test_multiple_emails_per_day_collapse_to_one_header():
     assert sent_prompt.count("11/5") == 1, (
         f"expected one date header for Monday, got {sent_prompt.count('11/5')}"
     )
+
+
+# ---------- email send -----------------------------------------------------
+
+def test_sends_email_with_recap_subject_after_upload():
+    bodies = {"2026-05-11": "<p>x</p>"}
+    drive = _make_drive_with_week(bodies)
+    gemini = MagicMock()
+    gemini.generate.return_value = "## stub markdown"
+
+    sent_email = MagicMock(return_value=True)
+    with patch("src.agents.recap_agent.DesignerAgent.create_recap_email",
+               return_value="<html>recap-body</html>"), \
+         patch("src.agents.recap_agent.send_daily_email", sent_email):
+        RecapAgent(gemini, drive, _fake_settings()).generate_and_upload(
+            today=_saturday_2026_05_16(), dry_run=False,
+        )
+
+    # Upload happened first…
+    drive.upload.assert_called_once()
+    # …then the email went out:
+    sent_email.assert_called_once()
+    subject, html_body = sent_email.call_args.args[:2]
+    assert subject.startswith("[Consultant Academy] สรุปสัปดาห์ที่")
+    assert "2026-05-16" in subject
+    # The email body is the same HTML we uploaded:
+    assert html_body == "<html>recap-body</html>"
+
+
+def test_dry_run_skips_upload_and_email():
+    bodies = {"2026-05-11": "<p>x</p>"}
+    drive = _make_drive_with_week(bodies)
+    gemini = MagicMock()
+    gemini.generate.return_value = "## stub markdown"
+
+    sent_email = MagicMock(return_value=True)
+    with patch("src.agents.recap_agent.DesignerAgent.create_recap_email",
+               return_value="<html>recap-body</html>"), \
+         patch("src.agents.recap_agent.send_daily_email", sent_email):
+        RecapAgent(gemini, drive, _fake_settings()).generate_and_upload(
+            today=_saturday_2026_05_16(), dry_run=True,
+        )
+
+    drive.upload.assert_not_called()
+    sent_email.assert_not_called()

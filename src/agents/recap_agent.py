@@ -11,7 +11,7 @@ from src.agents.designer_agent import DesignerAgent
 from src.config.settings import now_bangkok
 from src.integrations.drive_api import DriveAPI
 from src.integrations.gemini_client import GeminiClient
-from src.utils.email_sender import send_daily_email  # noqa: F401
+from src.utils.email_sender import send_daily_email
 
 logger = logging.getLogger(__name__)
 
@@ -180,3 +180,8 @@ class RecapAgent:
             mime_type="text/html",
         )
         logger.info("✅ Weekly recap uploaded")
+
+        subject = (
+            f"[Consultant Academy] สรุปสัปดาห์ที่ {week_num} — {date_str}"
+        )
+        send_daily_email(subject, recap_html, attachments=None)
