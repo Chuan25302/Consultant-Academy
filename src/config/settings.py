@@ -58,7 +58,7 @@ class Settings:
         "factchecker":  5000,  # rewrites translator output (now 5 sections + KC)
         "translator":   5000,  # +1 section (Knowledge Capture) over base 4000
         "editor":       5000,
-        "recap":        2000,
+        "recap":        3500,  # deep extraction of Mon–Fri bodies → 4-section output
         "planner":      6000,
         # image_brief intentionally removed — ImageAgent now passes the
         # full article straight to Gemini Flash Image (32k-token window),
