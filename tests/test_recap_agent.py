@@ -5,8 +5,10 @@ No real Drive/SMTP/Vertex calls — everything is mocked."""
 from __future__ import annotations
 
 import sys
+from datetime import datetime
 from pathlib import Path
 from unittest.mock import MagicMock, patch
+from zoneinfo import ZoneInfo
 
 import pytest
 
@@ -83,3 +85,97 @@ def test_build_day_digest_returns_none_on_empty_file():
     file_dict = {"id": "x", "name": "[Email] 2026-05-12 Y.html"}
 
     assert _build_day_digest(file_dict, drive) is None
+
+
+# ---------- RecapAgent.generate_and_upload ---------------------------------
+
+from src.agents.recap_agent import RecapAgent  # noqa: E402
+
+
+def _fake_settings():
+    s = MagicMock()
+    s.FOLDER_EMAIL_ARCHIVES = "archive_root_id"
+    return s
+
+
+def _saturday_2026_05_16():
+    return datetime(2026, 5, 16, 9, 0, tzinfo=ZoneInfo("Asia/Bangkok"))
+
+
+def _make_drive_with_week(bodies_by_date: dict[str, str]):
+    """Build a MagicMock DriveAPI that returns one [Email] file for
+    each Mon–Fri date that has a body in `bodies_by_date`."""
+    drive = MagicMock()
+
+    def list_by_prefix(prefix: str):
+        # prefix is "[Email] YYYY-MM-DD"
+        date = prefix.split(" ", 1)[1]
+        if date in bodies_by_date:
+            return [{"id": f"id-{date}", "name": f"{prefix} Topic.html"}]
+        return []
+
+    def download(file_id: str):
+        date = file_id.replace("id-", "")
+        return bodies_by_date.get(date, "")
+
+    drive.list_files_by_prefix.side_effect = list_by_prefix
+    drive.download_file.side_effect = download
+    drive.get_or_create_folder.return_value = "month_folder_id"
+    return drive
+
+
+def test_generate_feeds_full_bodies_into_prompt():
+    """The prompt sent to Gemini must contain Mon–Fri body text
+    (not just titles). This is the core of the 'deep extraction'
+    pivot — without body content the LLM can only hallucinate."""
+    bodies = {
+        "2026-05-11": "<p>Monday body — pump efficiency rule</p>",
+        "2026-05-12": "<p>Tuesday body — compressor surge formula</p>",
+        "2026-05-13": "<p>Wednesday body — heat exchanger NTU</p>",
+        "2026-05-14": "<p>Thursday body — soft skill: discovery questions</p>",
+        "2026-05-15": "<p>Friday body — case study takeaway</p>",
+    }
+    drive = _make_drive_with_week(bodies)
+    gemini = MagicMock()
+    gemini.generate.return_value = "## stub recap markdown"
+
+    with patch("src.agents.recap_agent.DesignerAgent.create_recap_email",
+               return_value="<html>recap</html>"), \
+         patch("src.agents.recap_agent.send_daily_email", return_value=True):
+        RecapAgent(gemini, drive, _fake_settings()).generate_and_upload(
+            today=_saturday_2026_05_16(), dry_run=False,
+        )
+
+    assert gemini.generate.call_count == 1
+    sent_prompt = gemini.generate.call_args.args[0]
+    # Every day's body text must appear in the prompt:
+    for body_snippet in [
+        "pump efficiency rule", "compressor surge formula",
+        "heat exchanger NTU", "discovery questions", "case study takeaway",
+    ]:
+        assert body_snippet in sent_prompt, f"missing in prompt: {body_snippet}"
+
+
+def test_prompt_has_four_sections_and_anti_hallucination_guard():
+    """The new prompt must define all four output sections AND tell the
+    LLM not to invent formulas — that guard is the only thing keeping
+    'Formulas & Heuristics' honest."""
+    bodies = {"2026-05-11": "<p>x</p>"}  # minimal — just need one day
+    drive = _make_drive_with_week(bodies)
+    gemini = MagicMock()
+    gemini.generate.return_value = "## stub"
+
+    with patch("src.agents.recap_agent.DesignerAgent.create_recap_email",
+               return_value="<html>recap</html>"), \
+         patch("src.agents.recap_agent.send_daily_email", return_value=True):
+        RecapAgent(gemini, drive, _fake_settings()).generate_and_upload(
+            today=_saturday_2026_05_16(), dry_run=False,
+        )
+
+    sent_prompt = gemini.generate.call_args.args[0]
+    assert "Key Takeaways" in sent_prompt
+    assert "Knowledge Capture" in sent_prompt
+    assert "Formulas & Heuristics" in sent_prompt
+    assert "ใช้กับลูกค้าได้เลย" in sent_prompt
+    # Anti-hallucination guard (free-form match — exact wording may vary):
+    assert "ห้ามแต่ง" in sent_prompt or "อย่าแต่ง" in sent_prompt

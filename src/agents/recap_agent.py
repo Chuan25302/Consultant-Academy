@@ -11,6 +11,7 @@ from src.agents.designer_agent import DesignerAgent
 from src.config.settings import now_bangkok
 from src.integrations.drive_api import DriveAPI
 from src.integrations.gemini_client import GeminiClient
+from src.utils.email_sender import send_daily_email  # noqa: F401
 
 logger = logging.getLogger(__name__)
 
@@ -68,31 +69,37 @@ def _build_day_digest(file_meta: dict, drive) -> str | None:
 
 WEEKDAY_TH_SHORT = ["จ", "อ", "พ", "พฤ", "ศ", "ส", "อา"]
 
-PROMPT = """
-คุณคือผู้สรุปเนื้อหา PTT NGR ESP Consultant Academy
+PROMPT = """คุณคือผู้สรุปและจับใจความเชิงลึกของ PTT NGR ESP Consultant Academy
 
-สรุปสัปดาห์นี้ให้ทีมที่ปรึกษา จากหัวข้อ Mon–Thu:
-{summaries}
+นี่คือเนื้อหาบทความ Mon–Fri สัปดาห์ที่ {week}:
 
-เขียน Markdown ภาษาไทย:
+{day_digests}
+
+---
+
+จงเขียน Markdown ภาษาไทย แบ่งเป็น 4 หัวข้อตามนี้ ไม่เกิน 500 คำรวมทั้งหมด:
 
 ## สรุปประจำสัปดาห์ที่ {week}
 
-### Insights ประจำวัน
-{summaries}
+### 🎯 Key Takeaways
+3–5 bullets — บทเรียนใหญ่ที่เปลี่ยน mental model ของที่ปรึกษาสัปดาห์นี้
+แต่ละ bullet ต้องอ้างเนื้อหาได้จริง (ระบุวันสั้น ๆ หากใช่)
 
-### Key Takeaway
-[1 ย่อหน้า — บทเรียนสำคัญที่สุดสัปดาห์นี้]
+### 📚 Knowledge Capture
+สิ่งที่ควรจำและอ้างถึงได้:
+- คำศัพท์ / นิยามใหม่ที่สำคัญ
+- ตัวเลข / data point ที่ใช้อ้างกับลูกค้าได้
+- framework / model ที่ใช้บ่อย
 
-### นำไปใช้กับลูกค้าได้เลย
-- [Consultant Move 1]
-- [Consultant Move 2]
-- [Consultant Move 3]
+### 📐 Formulas & Heuristics
+ดึง **เฉพาะที่ปรากฏจริง** ในเนื้อหาสัปดาห์นี้
+**สำคัญ:** ห้ามแต่ง formula หรือ heuristic ที่ไม่มีในเนื้อจริง
+ถ้าสัปดาห์นี้ไม่มี formula ให้พิมพ์ว่า "สัปดาห์นี้ไม่มี formula หลัก — เน้น soft-skill / framework"
+**Formulas:** สูตรพร้อมตัวแปรและ "ใช้เมื่อไร"
+**Heuristics:** กฎหัวแม่มือ / rules of thumb
 
-### สัปดาห์หน้า
-[teaser 1 ประโยค]
-
-ไม่เกิน 300 คำ
+### 🛠️ ใช้กับลูกค้าได้เลย
+3 consultant moves — action เฉพาะที่ทำได้สัปดาห์หน้า ดึงจากเนื้อหาที่อ่าน
 """
 
 
@@ -105,7 +112,7 @@ class RecapAgent:
     def generate_and_upload(self, today: datetime = None, dry_run: bool = False):
         today = today or now_bangkok()
         week_start = today - timedelta(days=today.weekday())
-        summaries = []
+        day_digests: list[str] = []
         daily_topics = []  # for the timeline strip in the recap layout
 
         for offset in range(5):  # Mon–Fri (recap runs Saturday)
@@ -117,23 +124,27 @@ class RecapAgent:
             for f in files:
                 title = re.sub(r"\[Email\] \d{4}-\d{2}-\d{2} (.+)\.html",
                                r"\1", f["name"])
-                summaries.append(f"- {title}")
                 day_topic = title  # last one wins if a day has multiple
+                body_text = _build_day_digest(f, self.drive)
+                if body_text:
+                    day_digests.append(
+                        f"## {WEEKDAY_TH_SHORT[d.weekday()]} {d.day}/{d.month} — {title}\n\n{body_text}"
+                    )
             daily_topics.append({
                 "date_th": f"{d.day}/{d.month}",
                 "day_th":  WEEKDAY_TH_SHORT[d.weekday()],
                 "topic":   day_topic,
             })
 
-        if not summaries:
-            logger.warning("⚠️ No emails found for recap")
+        if not day_digests:
+            logger.warning("⚠️ No content extracted for recap")
             return
 
         week_num = today.isocalendar()[1]
         recap_md = self.gemini.generate(
             PROMPT.format(
                 week=week_num,
-                summaries="\n".join(summaries),
+                day_digests="\n\n---\n\n".join(day_digests),
             ),
             agent_tag="recap",
         )
