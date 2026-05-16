@@ -128,6 +128,7 @@ def test_site_cta_trims_trailing_slash(monkeypatch):
 
 def test_post_url_path_format():
     from datetime import datetime
+
     from src.agents.designer_agent import post_url_path
     d = datetime(2026, 1, 5, tzinfo=TZ)
     assert post_url_path(d) == "/posts/2026/01/05/"

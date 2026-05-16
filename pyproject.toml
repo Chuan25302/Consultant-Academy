@@ -20,6 +20,14 @@ ignore = [
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["F401"]  # unused imports OK in test scaffolding
 "src/agents/*_agent.py" = ["E501"]  # long Thai prompt strings
+# These entry-point files load env / patch sys.path before importing
+# local modules, so module-level imports legitimately come after a few
+# top-of-file statements. Isort's sort would also break the ordering.
+"src/main.py" = ["E402", "I001"]
+"tools/build_site.py" = ["E402", "I001"]
+"tools/preview_site.py" = ["E402", "I001"]
+"tests/test_build_site.py" = ["E402", "I001"]
+"scripts/*" = ["E402", "I001"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
