@@ -14,7 +14,7 @@ class Settings:
 
     # Vertex AI — ถ้าตั้งค่า VERTEX_AI_PROJECT จะใช้ Vertex แทน API Key
     VERTEX_AI_PROJECT: str = os.getenv("VERTEX_AI_PROJECT", "")
-    VERTEX_AI_LOCATION: str = os.getenv("VERTEX_AI_LOCATION", "us-central1")
+    VERTEX_AI_LOCATION: str = os.getenv("VERTEX_AI_LOCATION", "global")
     VERTEX_AI_SERVICE_ACCOUNT_FILE: str = os.getenv(
         "VERTEX_AI_SERVICE_ACCOUNT_FILE", "vertex-ai-service-key.json"
     )
@@ -43,7 +43,7 @@ class Settings:
     # Default model for all agents. Override per-agent with
     # GEMINI_MODEL_<AGENT> env vars (RESEARCH | EXPERT | INDUSTRY |
     # TRANSLATOR | RECAP). Any model the google-genai SDK accepts.
-    GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+    GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-3.8-flash")
 
     MAX_TOKENS_PER_AGENT: int = 2000  # legacy fallback when agent_tag unknown
 

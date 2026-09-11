@@ -80,3 +80,18 @@ def test_log_records_zero_output_when_input_only(tracker):
     rec = json.loads(log.read_text().strip())
     assert rec["in_tokens"] == 1000
     assert rec["out_tokens"] == 0
+
+
+def test_every_workflow_model_has_a_price():
+    """A model missing from PRICING silently falls back to DEFAULT_PRICE
+    (gemini-2.0-flash rates), under-reporting a newer model's cost ~10x.
+    Guard the production workflow so a model swap can't skip PRICING."""
+    import re
+    from pathlib import Path
+
+    wf = Path(__file__).resolve().parents[1] / ".github/workflows/daily-routine.yml"
+    models = re.findall(r"^\s+GEMINI_MODEL(?:_[A-Z]+)?:\s*(\S+)\s*$",
+                        wf.read_text(encoding="utf-8"), flags=re.MULTILINE)
+    assert models, "no GEMINI_MODEL* env found — regex out of sync with workflow"
+    missing = sorted({m for m in models if m not in ct_mod.PRICING})
+    assert not missing, f"add to cost_tracker.PRICING: {missing}"

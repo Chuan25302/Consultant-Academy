@@ -1,6 +1,6 @@
 """
 Image Agent — generates an executive consulting infographic for each
-daily article using Vertex AI's Gemini 2.5 Flash Image model.
+daily article using Vertex AI's Gemini 3.1 Flash Image model.
 
 The model receives the full Thai article plus the McKinsey/BCG-style
 visual brief verbatim — Gemini Flash Image's ~32k-token context easily
@@ -35,7 +35,7 @@ VERTEX_SCOPES = ["https://www.googleapis.com/auth/cloud-platform"]
 # better text rendering reputation but a hard ~480-token cap that
 # truncates the layout instructions before they get a chance to apply.
 # Override via IMAGE_MODEL env to A/B with imagen-4.0-* etc.
-DEFAULT_MODEL = "gemini-2.5-flash-image"
+DEFAULT_MODEL = "gemini-3.1-flash-image"
 
 # Image prompt — kept in the user's original McKinsey/BCG framing,
 # but the Output Structure is spelled out section by section so the
