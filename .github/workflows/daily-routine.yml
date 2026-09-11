@@ -64,7 +64,8 @@ jobs:
           GOOGLE_SERVICE_ACCOUNT_FILE: google-key.json
           VERTEX_AI_SERVICE_ACCOUNT_FILE: vertex-ai-service-key.json
           VERTEX_AI_PROJECT: ${{ secrets.VERTEX_AI_PROJECT }}
-          VERTEX_AI_LOCATION: ${{ secrets.VERTEX_AI_LOCATION }}
+          # Gemini 3.x is served only from the global endpoint (us-central1 → 404).
+          VERTEX_AI_LOCATION: global
           CALENDAR_FILE_ID: ${{ secrets.CALENDAR_FILE_ID }}
           FOLDER_EMAIL_ARCHIVES: ${{ secrets.FOLDER_EMAIL_ARCHIVES }}
           FOLDER_KNOWLEDGE_BASE: ${{ secrets.FOLDER_KNOWLEDGE_BASE }}
@@ -74,16 +75,17 @@ jobs:
           EMAIL_APP_PASSWORD: ${{ secrets.EMAIL_APP_PASSWORD }}
           EMAIL_RECIPIENTS: ${{ secrets.EMAIL_RECIPIENTS }}
           SITE_BASE_URL: ${{ secrets.SITE_BASE_URL }}
-          GEMINI_MODEL: gemini-2.5-flash
-          GEMINI_MODEL_RESEARCH: gemini-2.5-flash
-          GEMINI_MODEL_EXPERT: gemini-2.5-pro
-          GEMINI_MODEL_INDUSTRY: gemini-2.5-flash
-          GEMINI_MODEL_FACTCHECKER: gemini-2.5-pro
-          GEMINI_MODEL_TRANSLATOR: gemini-2.5-flash
-          GEMINI_MODEL_EDITOR: gemini-2.5-pro
-          GEMINI_MODEL_SUSTAINABILITY: gemini-2.5-pro
-          GEMINI_MODEL_PLANNER: gemini-2.5-pro
-          GEMINI_MODEL_RECAP: gemini-2.5-flash
+          GEMINI_MODEL: gemini-3.8-flash
+          GEMINI_MODEL_RESEARCH: gemini-3.8-flash
+          GEMINI_MODEL_EXPERT: gemini-3.8-flash
+          GEMINI_MODEL_INDUSTRY: gemini-3.8-flash
+          GEMINI_MODEL_FACTCHECKER: gemini-3.8-flash
+          GEMINI_MODEL_TRANSLATOR: gemini-3.8-flash
+          GEMINI_MODEL_EDITOR: gemini-3.8-flash
+          GEMINI_MODEL_SUSTAINABILITY: gemini-3.8-flash
+          GEMINI_MODEL_PLANNER: gemini-3.8-flash
+          GEMINI_MODEL_RECAP: gemini-3.8-flash
+          IMAGE_MODEL: gemini-3.1-flash-image
         run: |
           ARGS=""
           [ "${{ github.event.inputs.dry_run }}" = "true" ] && ARGS="$ARGS --dry-run"

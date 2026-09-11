@@ -22,6 +22,9 @@ PRICING = {
     "gemini-2.5-flash-lite":   (0.10,  0.40),
     "gemini-2.5-pro":          (1.25,  10.00),
     "gemini-1.5-pro":          (1.25,  5.00),
+    # Vertex Global, introductory rate through 2026-12-31; becomes
+    # (1.50, 7.50) on 2027-01-01 — update this entry then.
+    "gemini-3.8-flash":        (0.75,  3.75),
 }
 DEFAULT_PRICE = (0.075, 0.30)
 

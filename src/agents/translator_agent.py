@@ -21,23 +21,26 @@ Output format — Markdown ตรงๆ ห้ามเพิ่มคำนำ�
 
 ## 1. {topic} ในมุมมอง Consultant
 
-[อธิบายว่า "ลูกค้าต้องการอะไรจริงๆ" — ไม่ใช่แค่นิยามทางเทคนิค ใช้ภาษาเชิงกลยุทธ์]
+[2 ย่อหน้า: (1) "ลูกค้าต้องการอะไรจริงๆ" — ไม่ใช่แค่นิยามทางเทคนิค ใช้ภาษาเชิงกลยุทธ์ (2) ทำไมเรื่องนี้กระทบธุรกิจลูกค้า — ต้นทุน / ความเสี่ยง / กฎระเบียบ พร้อมตัวเลขอ้างอิงจากเนื้อหาเทคนิคอย่างน้อย 1 จุด]
 
 ## 2. Case Study
 
-**Situation:** [โรงงานประเภทใด มีปัญหาอะไร ตัวเลขเริ่มต้น เช่น ค่าไฟ X บาท/เดือน]
+**Situation:** [โรงงานประเภทใด ขนาดเท่าไร มีปัญหาอะไร — ตัวเลขเริ่มต้นอย่างน้อย 2 ตัวพร้อมหน่วย เช่น ค่าไฟ X บาท/เดือน, ใช้พลังงาน Y kWh/ปี]
 
 **Complication:** [ปัญหาที่ซ่อนอยู่ที่ลูกค้ามองไม่เห็น — สาเหตุจริงไม่ใช่อาการ]
 
 > "ผู้จัดการโรงงานบอกเราว่า: '[ประโยคที่ลูกค้าน่าจะพูดในสถานการณ์นี้ — เช่น เครื่องเก่ายังใช้ได้อยู่ ทำไมต้องเปลี่ยน]'"
 
+**ตอบลูกค้าอย่างไร:** [1–2 ประโยคที่ที่ปรึกษาใช้ตอบ objection ข้างบน — อ้างตัวเลขหรือความเสี่ยงที่ลูกค้าจับต้องได้]
+
 **Consultant's Approach:**
 
-- [bullet 1 — วิธีแก้ด้วย framework/มาตรฐาน/เทคนิคจากหัวข้อนี้]
-- [bullet 2]
-- [bullet 3]
+- [bullet 1 — ทำอะไร (framework/มาตรฐาน/เทคนิคจากหัวข้อนี้) → ทำไมได้ผล → วัดผลด้วยตัวชี้วัดอะไร]
+- [bullet 2 — รูปแบบเดียวกัน]
+- [bullet 3 — รูปแบบเดียวกัน]
+- [bullet 4 — ถ้ามี]
 
-**Result:** [ผลลัพธ์เป็นตัวเลข เช่น ลด X% ภายใน Y เดือน คืนทุน Z ปี]
+**Result:** [ผลลัพธ์เป็นตัวเลขเทียบก่อน/หลัง เช่น ลด X% ภายใน Y เดือน คืนทุน Z ปี — พร้อม qualifier]
 
 ## 3. Consultant Move
 
@@ -47,13 +50,15 @@ Output format — Markdown ตรงๆ ห้ามเพิ่มคำนำ�
 
 **ทีม Sales:**
 
-- [actionable insight เชิง business value / ROI / การ pitch]
+- [actionable insight เชิง business value / ROI / การ pitch — ระบุคำถามหรือตัวเลขที่ใช้ได้จริง]
 - [actionable insight เพิ่มเติม]
+- [actionable insight เพิ่มเติม — ถ้ามี]
 
 **ทีม Technical:**
 
-- [actionable insight เชิงการวิเคราะห์ / วัดผล / การแนะนำ solution]
+- [actionable insight เชิงการวิเคราะห์ / วัดผล / การแนะนำ solution — ระบุเครื่องมือ ข้อมูล หรือเกณฑ์ที่ใช้]
 - [actionable insight เพิ่มเติม]
+- [actionable insight เพิ่มเติม — ถ้ามี]
 
 ## 5. Knowledge Capture
 
@@ -76,9 +81,11 @@ Output format — Markdown ตรงๆ ห้ามเพิ่มคำนำ�
 - **ห้ามใส่ประโยคแนะนำตัวเอง** เช่น "ในฐานะ Senior Engineer", "ผมขอแบ่งปัน", "ด้วยประสบการณ์..."
 - **ห้ามใส่ tagline** เกี่ยวกับ "ยกระดับทีม" หรือ "เป้าหมายซีรีส์" — Designer ใส่ใน footer แล้ว
 - ภาษาไทยเป็นหลัก ทับศัพท์ English ได้
+- **ห้ามใช้ LaTeX หรือ $...$** — เขียนหน่วยและสูตรเป็นข้อความธรรมดา เช่น tCO2e, kWh/ปี, TCO = CapEx + OpEx × N (อีเมลแสดง LaTeX ไม่ได้)
 - ตัวเลขในผลลัพธ์ต้องสมเหตุสมผล ใส่ qualifier เช่น "โดยประมาณ" "ในกรณีทั่วไป"
 - ห้ามใส่ชื่อบริษัทจริง ใช้ "โรงงานผลิต X" แทน
-- ไม่เกิน 700 คำ (รวม Knowledge Capture + glossary)
+- ความยาวประมาณ 800–1,000 คำ (รวม Knowledge Capture + glossary) — ความยาวต้องมาจากสาระ (ตัวเลข วิธีทำ เหตุผล) ไม่ใช่คำฟุ่มเฟือยหรือการพูดซ้ำ
+- **ใช้ข้อเท็จจริงและตัวเลขจาก "เนื้อหาเทคนิค" ก่อนเสมอ** — ห้ามกุตัวเลขที่ขัดกับเนื้อหาเทคนิค ถ้าต้องประมาณเองให้ใส่ qualifier
 - **Knowledge Capture ต้องมี formula/heuristic อย่างน้อย 2 ข้อ** ที่ดึงออกมาใช้ได้ทันที — ถ้าหัวข้อเป็น softskill/communication ใช้ checklist 2-3 ข้อแทน formula
 - **bullet ใช้ "- " (dash + space) เท่านั้น ห้ามใช้ "*" หรือ "•" เด็ดขาด** — markdown parser ในระบบรองรับเฉพาะ dash
 - ทุก bullet ต้องอยู่บรรทัดของตัวเอง (ขึ้นบรรทัดใหม่ก่อน "- ")
@@ -96,7 +103,9 @@ class TranslatorAgent:
         return self.gemini.generate(
             PROMPT.format(
                 topic=topic, pillar=pillar,
-                expert_content=expert_content[:1500],
+                # Whole fact-checked draft: it is the grounded source for the
+                # Case Study numbers. Cap only as a runaway-input guard.
+                expert_content=expert_content[:12000],
                 industry_context=industry_context[:400] if industry_context else "ไม่มี"
             ),
             agent_tag="translator",
