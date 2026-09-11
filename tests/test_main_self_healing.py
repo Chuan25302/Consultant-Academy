@@ -163,3 +163,31 @@ def test_gemini_error_in_a_stage_aborts_before_upload_and_email(mocked_main_deps
 
     deps["drive"].upload.assert_not_called()
     main_mod.send_daily_email.assert_not_called()
+
+
+def test_email_send_failure_fails_the_run(mocked_main_deps):
+    """SMTP failure used to log a warning and finish green, so nobody knew
+    the team got no email. Now it fails the run, which fires the alerts."""
+    from src.utils.email_sender import EmailNotSentError
+
+    deps = mocked_main_deps
+    deps["drive"].download_file.return_value = CALENDAR_WITH_WEEK
+    main_mod.send_daily_email.return_value = False
+    monday = datetime(2026, 5, 4, 8, 0, tzinfo=BKK)
+    with patch.object(main_mod, "now_bangkok", return_value=monday), \
+         patch.object(main_mod, "email_configured", return_value=True), \
+         pytest.raises(EmailNotSentError):
+        main_mod.main(skip_validation=True, dry_run=False)
+    # Calendar upkeep still ran before the failure was raised.
+    deps["CalendarPlannerAgent"].return_value.maybe_extend.assert_called_once()
+
+
+def test_email_not_configured_is_not_a_failure(mocked_main_deps):
+    deps = mocked_main_deps
+    deps["drive"].download_file.return_value = CALENDAR_WITH_WEEK
+    main_mod.send_daily_email.return_value = False
+    monday = datetime(2026, 5, 4, 8, 0, tzinfo=BKK)
+    with patch.object(main_mod, "now_bangkok", return_value=monday), \
+         patch.object(main_mod, "email_configured", return_value=False):
+        result = main_mod.main(skip_validation=True, dry_run=False)
+    assert result["status"] == "success"

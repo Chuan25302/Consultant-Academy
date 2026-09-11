@@ -86,11 +86,14 @@ jobs:
           GEMINI_MODEL_PLANNER: gemini-3.8-flash
           GEMINI_MODEL_RECAP: gemini-3.8-flash
           IMAGE_MODEL: gemini-3.1-flash-image
+        # bash + pipefail so `| tee` keeps main.py's exit code (sh has no pipefail).
+        shell: bash
         run: |
+          set -o pipefail
           ARGS=""
           [ "${{ github.event.inputs.dry_run }}" = "true" ] && ARGS="$ARGS --dry-run"
           [ -n "${{ github.event.inputs.date }}" ] && ARGS="$ARGS --date ${{ github.event.inputs.date }}"
-          python src/main.py $ARGS
+          python src/main.py $ARGS 2>&1 | tee run.log
 
       - name: Upload cost log
         if: always()
@@ -99,6 +102,16 @@ jobs:
           name: cost-log-${{ github.run_id }}
           path: data/cost_log.jsonl
           retention-days: 30
+
+      - name: Email owner on failure
+        if: failure()
+        continue-on-error: true
+        env:
+          ALERT_EMAIL: ${{ secrets.ALERT_EMAIL }}
+          EMAIL_SENDER: ${{ secrets.EMAIL_SENDER }}
+          EMAIL_APP_PASSWORD: ${{ secrets.EMAIL_APP_PASSWORD }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: python src/notify_failure.py run.log
 
       - name: Notify Slack on failure
         if: failure()

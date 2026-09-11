@@ -1,0 +1,12 @@
+10:35:30 [INFO] httpx — HTTP Request: POST https://aiplatform.googleapis.com/v1beta1/projects/PROJECT/locations/global/publishers/google/models/gemini-does-not-exist:generateContent "HTTP/1.1 404 Not Found"
+10:35:30 [ERROR] src.integrations.gemini_client — Gemini error (expert, gemini-does-not-exist) after retries: 404 NOT_FOUND. {'error': {'code': 404, 'message': 'Publisher model `projects/PROJECT/locations/global/publishers/google/models/gemini-does-not-exist` was not found or your project does not have access to it. Ensure you are using a valid model name and that the model is available in the specified region. For more information, see: https://docs.cloud.google.com/gemini-enterprise-agent-platform/resources/locations.', 'status': 'NOT_FOUND'}}
+Traceback (most recent call last):
+  File "D:\OneDrive - PTTPLC\Work PTT\NGR Transformation\Consultant Academy\src\main.py", line 308, in <module>
+    result = main(
+             ^^^^^
+  File "D:\OneDrive - PTTPLC\Work PTT\NGR Transformation\Consultant Academy\src\main.py", line 160, in main
+    expert = require_ok("expert", ExpertAgent(gemini).draft(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\OneDrive - PTTPLC\Work PTT\NGR Transformation\Consultant Academy\src\integrations\gemini_client.py", line 41, in require_ok
+    raise LLMStageError(f"{stage}: {text[:300]}")
+src.integrations.gemini_client.LLMStageError: expert: [Error: 404 NOT_FOUND. {'error': {'code': 404, 'message': 'Publisher model `projects/PROJECT/locations/global/publishers/google/models/gemini-does-not-exist` was not found or your project does not have access to it. Ensure you are using a valid model name and that the model is avail

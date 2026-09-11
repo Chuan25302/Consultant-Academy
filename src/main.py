@@ -40,7 +40,7 @@ from src.utils.cli import parse_date, validate_startup
 from src.utils.cost_tracker import CostTracker
 from src.utils.docx_writer import markdown_to_docx_bytes
 from src.utils.index_builder import IndexBuilder
-from src.utils.email_sender import send_daily_email
+from src.utils.email_sender import EmailNotSentError, email_configured, send_daily_email
 from src.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
@@ -282,6 +282,11 @@ def main(date: str = None, dry_run: bool = False,
             CalendarPlannerAgent(gemini, drive, s).maybe_extend(raw, target)
         except Exception as e:
             logger.error(f"Planner failed (non-blocking): {e}")
+
+        # Raised last so uploads + calendar upkeep still happen. A red run
+        # fires the failure alerts; a warning alone went unnoticed.
+        if not email_ok and email_configured():
+            raise EmailNotSentError(f"daily email not delivered: {subject}")
 
     daily_cost = cost.daily_total()
     logger.info(f"💰 Daily cost: ${daily_cost:.4f}")
