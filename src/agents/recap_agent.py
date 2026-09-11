@@ -12,7 +12,7 @@ from datetime import datetime, timedelta
 from src.agents.designer_agent import DesignerAgent
 from src.config.settings import now_bangkok
 from src.integrations.drive_api import DriveAPI
-from src.integrations.gemini_client import GeminiClient
+from src.integrations.gemini_client import GeminiClient, require_ok
 from src.utils.email_sender import send_daily_email
 
 logger = logging.getLogger(__name__)
@@ -153,13 +153,13 @@ class RecapAgent:
             return
 
         week_num = today.isocalendar()[1]
-        recap_md = self.gemini.generate(
+        recap_md = require_ok("recap", self.gemini.generate(
             PROMPT.format(
                 week=week_num,
                 day_digests="\n\n---\n\n".join(day_digests),
             ),
             agent_tag="recap",
-        )
+        ))
 
         recap_html = DesignerAgent.create_recap_email(
             content=recap_md,

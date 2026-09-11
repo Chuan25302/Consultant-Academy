@@ -137,3 +137,29 @@ def test_dry_run_weekday_skips_force_extend(mocked_main_deps):
     assert result["status"] == "error"
     assert result["reason"] == "no_topic"
     planner_instance.force_extend.assert_not_called()
+
+
+@pytest.mark.parametrize("stage", ["expert", "translator"])
+def test_gemini_error_in_a_stage_aborts_before_upload_and_email(mocked_main_deps, stage):
+    """A Gemini outage must fail the run (red workflow), not email the team
+    an "[Error: ...]" body — or, worse, an article the translator wrote with
+    no grounded source because the expert draft was an error string."""
+    from src.integrations.gemini_client import LLMStageError
+
+    deps = mocked_main_deps
+    deps["drive"].download_file.return_value = CALENDAR_WITH_WEEK
+    main_mod.ExpertAgent.return_value.draft.return_value = "expert draft"
+    main_mod.TranslatorAgent.return_value.simplify.return_value = "## 💡 ok"
+    err = "[Error: 503 UNAVAILABLE. model overloaded]"
+    if stage == "expert":
+        main_mod.ExpertAgent.return_value.draft.return_value = err
+    else:
+        main_mod.TranslatorAgent.return_value.simplify.return_value = err
+
+    monday = datetime(2026, 5, 4, 8, 0, tzinfo=BKK)
+    with patch.object(main_mod, "now_bangkok", return_value=monday), \
+         pytest.raises(LLMStageError, match=stage):
+        main_mod.main(skip_validation=True, dry_run=False)
+
+    deps["drive"].upload.assert_not_called()
+    main_mod.send_daily_email.assert_not_called()

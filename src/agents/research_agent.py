@@ -62,7 +62,9 @@ class ResearchAgent:
             agent_tag="research",
         )
         if not data:
-            data = {
+            # Gemini error or unparseable JSON. Don't cache the skeleton,
+            # or a retry would reuse empty research for the TTL window.
+            return {
                 "case_studies": [],
                 "tools_tips": [],
                 "benchmarks": {"tariff_thb_range": "3.5-4.8"},

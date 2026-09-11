@@ -21,6 +21,26 @@ logger = logging.getLogger(__name__)
 
 _VERTEX_SCOPES = ["https://www.googleapis.com/auth/cloud-platform"]
 
+# GeminiClient.generate returns f"[Error: {e}]" instead of raising, so
+# optional stages (factchecker/editor regen) can fall back to their input.
+ERROR_PREFIX = "[Error"
+
+
+class LLMStageError(RuntimeError):
+    """A required pipeline stage got a Gemini error instead of content."""
+
+
+def require_ok(stage: str, text):
+    """Return `text`, or raise if it is GeminiClient's error string.
+
+    Use on stages whose output the email cannot do without: an error
+    string there would be emailed verbatim or, worse, fed downstream as
+    the "source" an article is written from.
+    """
+    if isinstance(text, str) and text.startswith(ERROR_PREFIX):
+        raise LLMStageError(f"{stage}: {text[:300]}")
+    return text
+
 
 class GeminiClient:
     def __init__(self, settings: Settings, cost_tracker=None):

@@ -33,7 +33,7 @@ from src.agents.research_agent import ResearchAgent
 from src.agents.translator_agent import TranslatorAgent
 from src.config.settings import Settings, now_bangkok
 from src.integrations.drive_api import DriveAPI
-from src.integrations.gemini_client import GeminiClient
+from src.integrations.gemini_client import GeminiClient, require_ok
 from src.integrations.research_cache import ResearchCache
 from src.utils.calendar_parser import CalendarParser
 from src.utils.cli import parse_date, validate_startup
@@ -154,15 +154,18 @@ def main(date: str = None, dry_run: bool = False,
 
     research = ResearchAgent(gemini, cache).gather(
         topic["topic"], topic.get("industry"), topic.get("keywords"))
-    expert = ExpertAgent(gemini).draft(
+    # require_ok: a Gemini error on a required stage fails the run (red
+    # workflow) before any upload/email, instead of emailing "[Error: ...]"
+    # or an article written from an error string.
+    expert = require_ok("expert", ExpertAgent(gemini).draft(
         topic["topic"], topic["pillar"], research,
         industry=topic.get("industry", "ทั่วไป"),
-        topic_meta=topic)
+        topic_meta=topic))
 
     industry_ctx = None
     if topic.get("industry") and topic["industry"] not in ["General", "ทั่วไป"]:
-        industry_ctx = IndustryAgent(gemini).contextualize(
-            topic["topic"], topic["industry"], expert)
+        industry_ctx = require_ok("industry", IndustryAgent(gemini).contextualize(
+            topic["topic"], topic["industry"], expert))
 
     # FactChecker: anti-hallucination gate. Reviews technical+industry content
     # against the original research data; softens unverifiable claims.
@@ -171,13 +174,13 @@ def main(date: str = None, dry_run: bool = False,
         combined_technical = f"{expert}\n\n## บริบทอุตสาหกรรม\n{industry_ctx}"
     verified = FactCheckerAgent(gemini).review(combined_technical, research)
 
-    translated = TranslatorAgent(gemini).simplify(
-        verified, None, topic["topic"], topic["pillar"])
+    translated = require_ok("translator", TranslatorAgent(gemini).simplify(
+        verified, None, topic["topic"], topic["pillar"]))
 
     edited = EditorAgent(gemini).review(translated)
 
     index = IndexBuilder(drive, s)
-    final_md = edited
+    final_md = require_ok("editor", edited)
 
     # Optional infographic (gated on FOLDER_IMAGES + Vertex AI). Failures
     # are non-blocking — if image gen errors out we still send the email.

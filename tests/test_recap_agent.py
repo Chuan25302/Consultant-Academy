@@ -333,3 +333,21 @@ def test_partial_download_failure_still_generates_recap():
     assert "Thursday OK" in sent_prompt
     assert "Friday OK" in sent_prompt
     assert "503" not in sent_prompt  # error wasn't accidentally fed to LLM
+
+
+def test_gemini_error_aborts_before_upload_and_email():
+    from src.integrations.gemini_client import LLMStageError
+
+    drive = _make_drive_with_week({"2026-05-11": "<p>x</p>"})
+    gemini = MagicMock()
+    gemini.generate.return_value = "[Error: 503 UNAVAILABLE. model overloaded]"
+
+    sent_email = MagicMock(return_value=True)
+    with patch("src.agents.recap_agent.send_daily_email", sent_email), \
+         pytest.raises(LLMStageError, match="recap"):
+        RecapAgent(gemini, drive, _fake_settings()).generate_and_upload(
+            today=_saturday_2026_05_16(), dry_run=False,
+        )
+
+    drive.upload.assert_not_called()
+    sent_email.assert_not_called()
