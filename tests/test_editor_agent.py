@@ -139,5 +139,18 @@ def test_review_strips_latex_even_when_checks_pass():
     gemini = MagicMock()
     md = GOOD + "\n" + _REAL_UNIT
     out = EditorAgent(gemini).review(md)
-    assert "$" not in out and "\text" not in out
+    assert "$" not in out and r"\text" not in out
     gemini.generate.assert_not_called()
+
+
+def test_greenhouse_gas_is_not_a_company_name():
+    # Captured from the 2026-09-11 production email: "เรือนกระจก" ends in
+    # "จก", which matched the company-abbreviation pattern and forced a
+    # needless editor regen (the only false positive in 20 archived posts).
+    md = "ปล่อยก๊าซเรือนกระจก Scope 1 ประมาณ 26,500 tCO2e/ปี"
+    assert not any("ชื่อบริษัท" in i for i in EditorAgent.check(md))
+
+
+def test_thai_company_abbreviations_still_flagged():
+    for md in ["ลูกค้าคือ บจก. สยามเคมี ลด 20%", "ร่วมกับ หจก. ทองดี ลด 20%"]:
+        assert any("ชื่อบริษัท" in i for i in EditorAgent.check(md)), md

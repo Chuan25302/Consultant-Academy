@@ -24,6 +24,11 @@ def _is_transient(exc: BaseException) -> bool:
         return exc.resp.status in RETRYABLE_HTTP
     if isinstance(exc, (ConnectionError, TimeoutError)):
         return True
+    # google-genai APIError subclasses carry the HTTP status in `.code`.
+    # 429 arrives as ClientError, which the name check below never matched.
+    code = getattr(exc, "code", None)
+    if isinstance(code, int) and code in RETRYABLE_HTTP:
+        return True
     # google-genai surfaces server errors with these names; match by class name
     # to avoid a hard import dependency on internal SDK paths.
     name = type(exc).__name__
