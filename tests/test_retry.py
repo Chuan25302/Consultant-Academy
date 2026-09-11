@@ -59,3 +59,36 @@ def test_does_not_retry_on_non_transient():
     with pytest.raises(ValueError):
         busted()
     assert calls["n"] == 1
+
+
+# --- google-genai errors (Gemini via Vertex) -------------------------------
+from google.genai import errors as genai_errors  # noqa: E402
+
+# Payload captured from the 2026-09-11 production run (editor stage,
+# gemini-3.8-flash @ global). google-genai raises 429 as ClientError, which
+# the class-name check missed, so it was never retried.
+REAL_GENAI_429 = {
+    "error": {
+        "code": 429,
+        "message": "Resource exhausted. Please try again later. Please refer to "
+                   "https://cloud.google.com/vertex-ai/generative-ai/docs/error-code-429 "
+                   "for more details.",
+        "status": "RESOURCE_EXHAUSTED",
+    }
+}
+
+
+def test_genai_429_is_transient():
+    assert _is_transient(genai_errors.ClientError(429, REAL_GENAI_429))
+
+
+def test_genai_503_is_transient():
+    body = {"error": {"code": 503, "message": "overloaded", "status": "UNAVAILABLE"}}
+    assert _is_transient(genai_errors.ServerError(503, body))
+
+
+def test_genai_404_is_not_transient():
+    # A missing/retired model is permanent — retrying only delays the failure.
+    body = {"error": {"code": 404, "message": "Publisher model not found",
+                      "status": "NOT_FOUND"}}
+    assert not _is_transient(genai_errors.ClientError(404, body))

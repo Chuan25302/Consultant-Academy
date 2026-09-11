@@ -30,7 +30,8 @@ TAKEAWAY_RE = re.compile(r"Takeaways?|ทีม\s*Sales|ทีม\s*Technical", 
 # between title and name; "คุณ" is also a regular word) so we leave that to
 # the LLM-powered FactChecker upstream and only check company patterns here.
 SPECIFIC_COMPANY_RE = re.compile(
-    r"(?:บริษัท|บมจ\.?|จก\.?|จำกัด|Co\.?,?\s*Ltd\.?|Inc\.?|Corp\.?)\s+[A-Za-zก-๙][A-Za-zก-๙\s]{1,20}"
+    # [บห]จก: bare "จก" also ends "เรือนกระจก" (greenhouse) — false positive.
+    r"(?:บริษัท|บมจ\.?|[บห]จก\.?|จำกัด|Co\.?,?\s*Ltd\.?|Inc\.?|Corp\.?)\s+[A-Za-zก-๙][A-Za-zก-๙\s]{1,20}"
 )
 
 # Inline LaTeX ($...$ containing a \command). gemini-3.x emits units and

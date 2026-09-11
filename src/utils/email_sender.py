@@ -48,18 +48,29 @@ def _attach_part(filename: str, data: bytes, content_id: str | None):
     return part
 
 
+class EmailNotSentError(RuntimeError):
+    """Email was configured but delivery failed — the run must not look green."""
+
+
+def email_configured() -> bool:
+    return all(os.getenv(k, "").strip() for k in
+               ("EMAIL_SENDER", "EMAIL_APP_PASSWORD", "EMAIL_RECIPIENTS"))
+
+
 def send_daily_email(subject: str, html_body: str,
-                     attachments: list | None = None) -> bool:
+                     attachments: list | None = None,
+                     recipients: list[str] | None = None) -> bool:
+    """Send to `recipients`, or to the EMAIL_RECIPIENTS team list if None."""
     sender = os.getenv("EMAIL_SENDER", "")
     password = os.getenv("EMAIL_APP_PASSWORD", "")
-    recipients_raw = os.getenv("EMAIL_RECIPIENTS", "")
     reply_to = os.getenv("EMAIL_REPLY_TO", "").strip()
+    if recipients is None:
+        recipients = [r.strip() for r in os.getenv("EMAIL_RECIPIENTS", "").split(",")
+                      if r.strip()]
 
-    if not all([sender, password, recipients_raw]):
+    if not all([sender, password, recipients]):
         logger.info("📧 Email skipped — EMAIL_SENDER/APP_PASSWORD/RECIPIENTS not set")
         return False
-
-    recipients = [r.strip() for r in recipients_raw.split(",") if r.strip()]
 
     # multipart/related so cid: image references resolve, with an inner
     # multipart/alternative for the HTML body (and future plain-text

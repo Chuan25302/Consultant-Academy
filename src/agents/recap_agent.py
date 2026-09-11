@@ -12,8 +12,8 @@ from datetime import datetime, timedelta
 from src.agents.designer_agent import DesignerAgent
 from src.config.settings import now_bangkok
 from src.integrations.drive_api import DriveAPI
-from src.integrations.gemini_client import GeminiClient
-from src.utils.email_sender import send_daily_email
+from src.integrations.gemini_client import GeminiClient, require_ok
+from src.utils.email_sender import EmailNotSentError, email_configured, send_daily_email
 
 logger = logging.getLogger(__name__)
 
@@ -153,13 +153,13 @@ class RecapAgent:
             return
 
         week_num = today.isocalendar()[1]
-        recap_md = self.gemini.generate(
+        recap_md = require_ok("recap", self.gemini.generate(
             PROMPT.format(
                 week=week_num,
                 day_digests="\n\n---\n\n".join(day_digests),
             ),
             agent_tag="recap",
-        )
+        ))
 
         recap_html = DesignerAgent.create_recap_email(
             content=recap_md,
@@ -191,4 +191,6 @@ class RecapAgent:
         subject = (
             f"[Consultant Academy] สรุปสัปดาห์ที่ {week_num} — {date_str}"
         )
-        send_daily_email(subject, recap_html, attachments=None)
+        if not send_daily_email(subject, recap_html, attachments=None) \
+                and email_configured():
+            raise EmailNotSentError(f"recap email not delivered: {subject}")
