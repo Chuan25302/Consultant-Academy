@@ -62,7 +62,7 @@ def test_check_recognizes_thai_units():
 
 
 def test_check_flags_overlong_content():
-    long_md = "word " * 800 + "\n## Consultant Move\nถาม\n\n📖 ศัพท์น่ารู้: A=B\n5000 บาท 800 kWh 25%"
+    long_md = "word " * 1300 + "\n## Consultant Move\nถาม\n\n📖 ศัพท์น่ารู้: A=B\n5000 บาท 800 kWh 25%"
     issues = EditorAgent.check(long_md)
     assert any("ยาว" in i for i in issues)
 
@@ -108,3 +108,36 @@ def test_check_passes_generic_company_phrasing():
     md = GOOD.replace("โรงแรม 200 ห้องในกรุงเทพ", "โรงงานขนาดกลางแห่งหนึ่งในไทย")
     issues = EditorAgent.check(md)
     assert not any("ชื่อบริษัท" in i for i in issues)
+
+
+# Fixtures captured verbatim from a gemini-3.8-flash translator run
+# (2026-09-11, Scope 1 MRV). Email clients render these as raw LaTeX.
+_REAL_UNIT = r"มีการปล่อย Scope 1 สูงถึง 26,800 $\text{tCO}_2\text{e}$/ปี"
+_REAL_FORMULA = (
+    r"- $\text{GHG Emissions (tCO}_2\text{e)} = \text{Activity Data} "
+    r"\times \text{Net Calorific Value (NCV)} \times \text{Emission Factor (EF)}$"
+)
+
+
+def test_strip_latex_unit_from_real_output():
+    assert EditorAgent.strip_latex(_REAL_UNIT) == "มีการปล่อย Scope 1 สูงถึง 26,800 tCO2e/ปี"
+
+
+def test_strip_latex_formula_from_real_output():
+    assert EditorAgent.strip_latex(_REAL_FORMULA) == (
+        "- GHG Emissions (tCO2e) = Activity Data × Net Calorific Value (NCV)"
+        " × Emission Factor (EF)"
+    )
+
+
+def test_strip_latex_leaves_plain_dollar_amounts_alone():
+    md = "งบ $100 และ $250 ต่อจุด"
+    assert EditorAgent.strip_latex(md) == md
+
+
+def test_review_strips_latex_even_when_checks_pass():
+    gemini = MagicMock()
+    md = GOOD + "\n" + _REAL_UNIT
+    out = EditorAgent(gemini).review(md)
+    assert "$" not in out and "\text" not in out
+    gemini.generate.assert_not_called()

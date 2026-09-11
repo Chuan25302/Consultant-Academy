@@ -56,7 +56,7 @@ class Settings:
         "expert":       3500,
         "industry":     2000,
         "factchecker":  5000,  # rewrites translator output (now 5 sections + KC)
-        "translator":   5000,  # +1 section (Knowledge Capture) over base 4000
+        "translator":   8000,  # 800–1,000-word target + 3.x thinking; 5000 hit MAX_TOKENS on real runs
         "editor":       5000,
         "recap":        5000,  # deep extraction → 4 sections; 3500 hit MAX_TOKENS on real runs
         "planner":      6000,

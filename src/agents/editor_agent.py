@@ -33,6 +33,32 @@ SPECIFIC_COMPANY_RE = re.compile(
     r"(?:บริษัท|บมจ\.?|จก\.?|จำกัด|Co\.?,?\s*Ltd\.?|Inc\.?|Corp\.?)\s+[A-Za-zก-๙][A-Za-zก-๙\s]{1,20}"
 )
 
+# Inline LaTeX ($...$ containing a \command). gemini-3.x emits units and
+# formulas this way (e.g. $\text{tCO}_2\text{e}$) and email clients show it
+# raw. Requiring a backslash leaves plain dollar amounts ("$100") alone.
+LATEX_INLINE_RE = re.compile(r"\$([^$\n]*?\\[A-Za-z]+[^$\n]*?)\$")
+_LATEX_SYMBOLS = {
+    "times": "×", "cdot": "·", "sum": "Σ", "Sigma": "Σ", "approx": "≈",
+    "le": "≤", "leq": "≤", "ge": "≥", "geq": "≥", "pm": "±", "Delta": "Δ",
+    "rightarrow": "→", "to": "→",
+}
+
+
+def _delatex(expr: str) -> str:
+    prev = None
+    while prev != expr:  # unwrap nested \text{...} etc.
+        prev = expr
+        expr = re.sub(r"\\(?:text|mathrm|mathbf|textbf|operatorname)\{([^{}]*)\}",
+                      r"\1", expr)
+        expr = re.sub(r"\\frac\{([^{}]*)\}\{([^{}]*)\}", r"(\1)/(\2)", expr)
+    expr = re.sub(r"\\([A-Za-z]+)",
+                  lambda m: _LATEX_SYMBOLS.get(m.group(1), m.group(1)), expr)
+    expr = re.sub(r"_\{([^{}]*)\}|_(\w)", lambda m: m.group(1) or m.group(2), expr)
+    expr = re.sub(r"\^\{([^{}]*)\}", r"^\1", expr)
+    expr = expr.replace(r"\%", "%").replace("{", "").replace("}", "")
+    return re.sub(r"\s{2,}", " ", expr).strip()
+
+
 PROMPT = """
 คุณคือ Editor ของ PTT NGR ESP Consultant Academy
 แก้เนื้อหาต่อไปนี้ให้ผ่านเกณฑ์ที่กำหนด — ไม่ต้องอธิบาย ไม่ใส่ comment
@@ -45,7 +71,7 @@ PROMPT = """
 - เก็บโครงสร้างเดิมไว้ ภาษาไทยเป็นหลัก ทับศัพท์ English ได้
 - เพิ่มสิ่งที่ขาด อย่าลบของที่มีอยู่
 - ตัวเลขต้องสมเหตุสมผล (ไม่กุขึ้น)
-- ความยาวรวมไม่เกิน 600 คำ
+- ความยาวรวมไม่เกิน 1,000 คำ
 
 เนื้อหาเดิม:
 {content}
@@ -56,7 +82,12 @@ class EditorAgent:
     def __init__(self, gemini: GeminiClient):
         self.gemini = gemini
 
+    @staticmethod
+    def strip_latex(md: str) -> str:
+        return LATEX_INLINE_RE.sub(lambda m: _delatex(m.group(1)), md)
+
     def review(self, md: str) -> str:
+        md = self.strip_latex(md)
         issues = self.check(md)
         if not issues:
             logger.info("✓ Editor: content passes all checks (no LLM call)")
@@ -69,7 +100,7 @@ class EditorAgent:
             agent_tag="editor",
         )
         if improved and not improved.startswith("[Error"):
-            return improved
+            return self.strip_latex(improved)
         logger.warning("Editor regen failed — keeping original")
         return md
 
@@ -89,8 +120,8 @@ class EditorAgent:
                 "(เช่น บาท / kWh / % / ปี)"
             )
         word_count = len(md.split())
-        if word_count > 800:
-            issues.append(f"เนื้อหายาว {word_count} คำ ต้องการไม่เกิน 700")
+        if word_count > 1200:
+            issues.append(f"เนื้อหายาว {word_count} คำ ต้องการไม่เกิน 1,000")
         # Anti-hallucination spot check (FactChecker should have cleaned this,
         # but Editor catches anything that slipped through).
         if SPECIFIC_COMPANY_RE.search(md):
