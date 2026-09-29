@@ -26,6 +26,15 @@ from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
+
+def _ordinal(iso_date: str) -> int:
+    """Convert ISO date string to ordinal for sorting. Returns 0 on parse error."""
+    from datetime import date as _date
+    try:
+        return _date.fromisoformat(iso_date).toordinal()
+    except ValueError:
+        return 0
+
 MASTER_INDEX_FILENAME = "00-Master-Index.md"
 SUMMARIES_FILENAME = "__summaries.json"
 
@@ -230,6 +239,40 @@ class IndexBuilder:
                     or ""
                 )
         return ranked
+
+    def recall_candidates(self, today, cluster: str = "", limit: int = 2,
+                          min_age_days: int = 3,
+                          max_age_days: int = 14) -> list[dict]:
+        """Articles old enough to be worth recalling, young enough to be
+        recallable (spec A3). Same cluster first, newest first. Best-effort:
+        any Drive or summaries failure returns [] so the daily email still
+        goes out (spec C3)."""
+        from datetime import date as _date
+
+        try:
+            articles = self.collect_articles()
+            summaries = self._load_summaries()
+        except Exception as e:  # noqa: BLE001 — best-effort by design
+            logger.warning(f"recall_candidates unavailable (non-blocking): {e}")
+            return []
+
+        picks: list[dict] = []
+        for a in articles:
+            try:
+                published = _date.fromisoformat(a["date"])
+            except (KeyError, ValueError):
+                continue
+            age = (today - published).days
+            if not (min_age_days <= age <= max_age_days):
+                continue
+            tldr = (summaries.get(a["id"], {}) or {}).get("tldr", "").strip()
+            if not tldr:
+                continue
+            picks.append({"title": a["title"], "date": a["date"], "tldr": tldr,
+                          "cluster": a.get("cluster", "General")})
+
+        picks.sort(key=lambda p: (p["cluster"] != cluster, -_ordinal(p["date"])))
+        return picks[:limit]
 
     def render(self, articles: list[dict]) -> str:
         if not articles:
