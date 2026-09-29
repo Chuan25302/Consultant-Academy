@@ -265,6 +265,7 @@ goal existed and optimises variety plus a usable artifact.
 | BLOCKER | **Nothing in the system can tell whether any of this works.** The only signal today is the owner's impression (n=1). No opens, no clicks, no replies counted, no answers collected. Ship v1 or v2 and the honest report next month is "we cannot say" — any claim of improvement would be unfalsifiable. |
 | MAJOR | The success criterion must be observable and carry a denominator — e.g. *replies to the Saturday retrieval mail: k of 17 recipients*, tracked weekly — not "อีเมลดีขึ้น". |
 | MINOR | The baseline must be captured **before** the change (current replies ≈ 0 of 17), or there is nothing to compare against afterwards. |
+| — | **Superseded 2026-09-29:** the owner ruled the mail stays one-way, so the reply-based criterion this seat proposed is not built. See C2 and the revised A8: retention is recorded as permanently unmeasured, and only delivery-side numbers are logged. |
 
 ### 6. ผู้ดูแลโค้ด (maintainer)
 
@@ -292,11 +293,15 @@ block ~80 words. The total lands near today's 900–1,000, so nothing gets
 longer, but half the words now do teaching work instead of covering
 ground.
 
-**C2 — measurement wants a feedback channel; support wants no new infrastructure.**
-Resolution: use the rail that exists. The Saturday mail asks three
-questions and invites a one-line reply; `EMAIL_REPLY_TO` is already
-supported (`email_sender.py:57`). Count replies weekly as `k of 17`. No
-forms, no tracking pixels, no new service.
+**C2 — measurement wants a feedback channel; support wants no new infrastructure; the owner requires the mail stay one-way.**
+Resolution (owner decision, 2026-09-29): **no reply channel.** The mail
+asks nothing of the reader and collects nothing. That makes retention
+itself unmeasurable with the rails available — tracking pixels are
+blocked by corporate mail clients, and the static site stores nothing —
+so the spec states it plainly rather than inventing a proxy for
+learning. What the pipeline *can* measure about itself is logged
+instead (see A8), and no such number may be presented as evidence that
+people learned more.
 
 **C3 — the instructional seat wants spaced recall; the maintainer warns that its data comes from Drive at generation time.**
 Resolution: the recall block is **best-effort**. If `__summaries.json`
@@ -323,10 +328,12 @@ Best-effort per C3, and no extra LLM call: past TL;DRs go into the
 existing translator prompt.
 
 **A4 — supersedes "Non-Goals" (recap exclusion).** The Saturday recap
-changes from summary to **retrieval**: five questions about the week,
-answers below, plus one question inviting a reply. The prompt at
-`recap_agent.py:88-99` is rewritten; the `Knowledge Capture` anchor
-stays, so renderer and site are unaffected.
+changes from summary to **retrieval**: five questions about the week
+with the answers in a box below, so the reader tests themselves and
+checks immediately. The mail stays **one-way — it asks for no reply**
+(owner decision, C2). The prompt at `recap_agent.py:88-99` is rewritten;
+the `Knowledge Capture` anchor stays, so renderer and site are
+unaffected.
 
 **A5 — supersedes the length rule in "Design §3".** Targets become body
 600–700 words, kit ~150, recall ~80. The editor length gate moves with
@@ -346,10 +353,27 @@ calculator kit whose reference figures lack a source tag. A curated
 `docs/references/th-energy-reference.md` holds the approved figures and
 is quoted into the prompt, so the model recalls rather than invents.
 
-**A8 — supersedes "Testing"; adds a measurement requirement.** Record
-the baseline before merge (replies per week: currently 0 of 17). After
-merge, log weekly `replies k/17` in `docs/ops-log.md`. No claim about
-improvement may be made without that denominator.
+**A8 — supersedes "Testing"; adds a measurement requirement.**
+*(Revised 2026-09-29 after the owner ruled the mail stays one-way.)*
+Retention is **not measured and cannot be** with one-way delivery — no
+replies, no pixels (corporate clients block images), no storage (the
+site is static GitHub Pages). The spec records this as a permanent
+`NOT VERIFIED`, and nobody may claim "the team learns more" from any
+number produced here.
+
+What the pipeline logs about **itself**, weekly, appended to
+`docs/ops-log.md` by whoever reviews the week:
+
+| Metric | Source | What it does and does not say |
+|---|---|---|
+| Distinct article shapes in the last 10 issues | count of distinct pillar profiles used | says variety shipped; says nothing about learning |
+| Recall coverage: issues carrying a `🔁` block / issues sent | editor gate result in the run log | says the spacing loop ran; says nothing about whether anyone answered |
+| Editor repair rate: runs where a gate fired / runs | `✏️ Editor: repairing …` lines in the run log | catches an unsatisfiable gate burning a call every day (seat 4 MAJOR) |
+
+Optional, owner-run, not required by this spec: at a team meeting, ask
+two people one question from an article 1–2 weeks old. `k of 2` is a
+tiny sample and must be reported with that denominator, never as a
+percentage.
 
 **A9 — supersedes "Design §5".** No `<details>`, no JS. The recall box
 and the answer box are ordinary table-based boxes rendered through
