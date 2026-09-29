@@ -2,7 +2,7 @@ import re
 
 import pytest
 
-from src.agents.formats import FORMAT_PROFILES, KIT_SPECS
+from src.agents.formats import FORMAT_PROFILES, KIT_SPECS, REFERENCE_FIGURES
 from src.agents.translator_agent import TranslatorAgent, build_prompt
 
 
@@ -97,3 +97,13 @@ def test_scene_rule_only_present_when_a_scene_is_given():
     assert "ห้ามเปลี่ยนไปใช้ฉากอื่น" not in _prompt(scene="")
     assert "****" not in _prompt(scene="")
     assert "ห้ามเปลี่ยนไปใช้ฉากอื่น" in _prompt(scene="โรงแรมริมทะเล")
+
+
+def test_calculator_pillars_receive_the_reference_table():
+    assert REFERENCE_FIGURES.strip() in _prompt("SUSTAINABILITY")
+    assert REFERENCE_FIGURES.strip() in _prompt("FRAMEWORK")
+
+
+def test_non_calculator_pillars_do_not_carry_it():
+    assert "ค่าไฟเฉลี่ยภาคอุตสาหกรรม" not in _prompt("SOFTSKILL")
+    assert REFERENCE_FIGURES.strip() not in _prompt("SOFTSKILL")

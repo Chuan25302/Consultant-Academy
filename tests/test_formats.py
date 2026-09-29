@@ -2,7 +2,14 @@ from datetime import date
 
 import pytest
 
-from src.agents.formats import FORMAT_PROFILES, KIT_SPECS, LEVEL_GUIDE, profile_for, scene_for
+from src.agents.formats import (
+    FORMAT_PROFILES,
+    KIT_SPECS,
+    LEVEL_GUIDE,
+    REFERENCE_FIGURES,
+    profile_for,
+    scene_for,
+)
 
 PILLARS = ["TECHNICAL", "INDUSTRY", "FRAMEWORK",
            "SOFTSKILL", "COMPLIANCE", "SUSTAINABILITY"]
@@ -95,3 +102,14 @@ def test_determinism_pinned_to_sha256_not_builtin_hash():
     # Golden value: if someone swaps hashlib.sha256 for hash(),
     # the salted builtin would fail this test across runs.
     assert scene_for(date(2026, 10, 1), "Food", POOL) == "โรงงานกระดาษ"
+
+
+def _figure_lines():
+    return [ln for ln in REFERENCE_FIGURES.splitlines() if ln.strip().startswith("-")]
+
+
+def test_reference_figures_carry_sources():
+    lines = _figure_lines()
+    assert len(lines) >= 4
+    assert all("ที่มา" in ln for ln in lines), "every figure needs provenance (A7)"
+

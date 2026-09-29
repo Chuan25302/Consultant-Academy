@@ -54,6 +54,20 @@ KIT_SPECS = {
     ),
 }
 
+# PENDING OWNER VERIFICATION: these figures were drafted by the plan author and
+# have NOT been confirmed by the domain owner. Confirm each one against its
+# cited source before anyone quotes it to a customer. Do not add figures
+# without a source. Human-readable copy: docs/references/th-energy-reference.md
+REFERENCE_FIGURES = """
+ตัวเลขอ้างอิงไทยที่อนุญาตให้ใช้ (ห้ามกุตัวเลขอื่นแล้วอ้างว่าเป็นมาตรฐาน):
+- ค่าไฟเฉลี่ยภาคอุตสาหกรรม 4.2 บาท/kWh — ที่มา: PEA/MEA tariff 2569
+- Emission factor ไฟฟ้า grid ไทย 0.4999 tCO2e/MWh — ที่มา: TGO CFO 2568
+- Emission factor ก๊าซธรรมชาติ 56.1 tCO2e/TJ — ที่มา: IPCC 2006 Vol.2
+- ค่าความร้อนก๊าซธรรมชาติ 39 MJ/m3 — ที่มา: PTT NGR spec sheet 2568
+- อายุใช้งานหม้อไอน้ำอุตสาหกรรม 15–20 ปี — ที่มา: ASHRAE Equipment Life
+ถ้าต้องใช้ตัวเลขนอกรายการนี้ ให้เขียนว่า "ประมาณการ" และห้ามอ้างมาตรฐานใด ๆ
+"""
+
 LEVEL_GUIDE = {
     1: "L1 — พบครั้งแรก: นิยามศัพท์ให้ชัด ยกตัวอย่างเดียวที่เห็นภาพ ไม่ต้องลงลึกข้อยกเว้น",
     2: "L2 — เอาไปใช้: ต้องมีตัวอย่างคำนวณหรือขั้นตอนที่ทำตามได้จริงพร้อมตัวเลข",

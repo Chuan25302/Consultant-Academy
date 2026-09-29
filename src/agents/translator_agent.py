@@ -1,6 +1,6 @@
 import logging
 
-from src.agents.formats import KIT_SPECS, LEVEL_GUIDE, profile_for
+from src.agents.formats import KIT_SPECS, LEVEL_GUIDE, REFERENCE_FIGURES, profile_for
 from src.integrations.gemini_client import GeminiClient
 
 logger = logging.getLogger(__name__)
@@ -102,6 +102,8 @@ def build_prompt(*, topic: str, pillar: str, level: int, industry: str,
     parts.append(TAIL_TMPL.format(cmove_index=n + 1, kc_index=n + 2,
                                   kit_label=kit.label,
                                   kit_instructions=kit.instructions))
+    if profile.kit == "calculator":
+        parts.append(REFERENCE_FIGURES)
     if recall_items:
         sources = "\n".join(
             f'- {it["title"]} ({it["date"]}): {it["tldr"]}' for it in recall_items)
