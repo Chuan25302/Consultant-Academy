@@ -167,3 +167,162 @@ def test_km_banner_appears_above_body_when_env_set(monkeypatch):
     banner_idx = html.find('class="km-banner"')
     body_idx   = html.find('class="bd"')
     assert banner_idx > 0 and body_idx > 0 and banner_idx < body_idx
+
+
+MD_WITH_BOXES = """## 💡 ประเด็นวันนี้
+สรุป
+
+## 🧰 Checklist เดินหน้างาน
+
+- ☐ วัดอุณหภูมิน้ำเย็นออก ควรอยู่ 7 °C
+
+## 🔁 ทวนของเก่า
+
+- เมื่อวาน COP ต่ำแปลว่าอะไร?
+
+## 🔑 เฉลย
+
+- แปลว่าเครื่องกินไฟเกินต่อความเย็นที่ได้
+"""
+
+
+def test_kit_section_becomes_its_own_box():
+    html = DesignerAgent._md_to_html(MD_WITH_BOXES)
+    assert 'class="kit"' in html
+    assert "Checklist เดินหน้างาน" in html
+
+
+def test_recall_and_answers_become_separate_boxes():
+    html = DesignerAgent._md_to_html(MD_WITH_BOXES)
+    assert 'class="recall"' in html
+    assert 'class="answers"' in html
+    assert html.index('class="recall"') < html.index('class="answers"'), (
+        "answers must come after the questions")
+
+
+def test_checkbox_character_survives_rendering():
+    assert "☐" in DesignerAgent._md_to_html(MD_WITH_BOXES)
+
+
+def test_boxes_survive_premailer_inlining():
+    html = DesignerAgent.create_email(
+        MD_WITH_BOXES,
+        {"topic": "T", "pillar": "TECHNICAL", "date": datetime(2026, 10, 1)})
+    assert "☐" in html
+    assert "เฉลย" in html
+    for cls in ("kit", "recall", "answers"):
+        assert f'class="{cls}"' in html, cls
+    assert re.search(r'<div class="(?:kit|recall|answers)"[^>]*style="', html), \
+        "premailer should inline a style= onto at least one new box"
+    assert "<details" not in html, "spec A9 — no <details>, it is unreliable in Gmail"
+
+
+MD_REAL_ORDER = """## 💡 ประเด็นวันนี้
+สรุป
+
+## 1. หัวข้อแรก
+เนื้อหา
+
+## 2. หัวข้อสอง
+เนื้อหา
+
+## 3. Consultant Move
+ทำแบบนี้
+
+## 🧰 Checklist เดินหน้างาน
+
+- ☐ วัดอุณหภูมิน้ำเย็นออก
+
+## 4. Knowledge Capture
+จำไว้
+
+## 📖 ศัพท์น่ารู้
+
+- COP = สัมประสิทธิ์สมรรถนะ
+
+## 🔁 ทวนของเก่า
+
+- เมื่อวาน COP ต่ำแปลว่าอะไร?
+
+## 🔑 เฉลย
+
+- เครื่องกินไฟเกิน
+"""
+
+
+def _first_box_body(html, cls):
+    """Text of a box from its opening tag to the FIRST closing </div>."""
+    return html.split(f'class="{cls}"', 1)[1].split("</div>", 1)[0]
+
+
+def test_boxes_are_not_nested_in_real_translator_order():
+    html = DesignerAgent._md_to_html(MD_REAL_ORDER)
+    assert 'class="kcapture"' not in _first_box_body(html, "kit")
+    assert 'class="glossary"' not in _first_box_body(html, "kit")
+    assert 'class="answers"' not in _first_box_body(html, "recall")
+    assert 'class="cmove"' not in _first_box_body(html, "kcapture")
+
+
+def test_existing_boxes_still_render_with_new_ones():
+    html = DesignerAgent._md_to_html(MD_REAL_ORDER)
+    for cls in ("cmove", "kit", "kcapture", "glossary", "recall", "answers"):
+        assert f'class="{cls}"' in html, cls
+
+
+# ---------- _extract_tldr ---------------------------------------------------
+# The stored TL;DR is not cosmetic: main.py persists it to __summaries.json,
+# and from there it becomes the inbox preheader, the site card snippet,
+# <meta name="description"> and the text quoted into next week's recall prompt.
+
+# Captured from the six-pillar dry run of 2026-09-29 (TECHNICAL, 2026-10-05 —
+# tests/fixtures/email_archive_2026-10-05_TECHNICAL.html), written back in the
+# markdown shape the translator emits.
+TLDR_REAL_MD = """## 💡 ประเด็นวันนี้
+
+ปรับรอบมอเตอร์แทนการหรี่วาล์วในคลังสินค้าห้องเย็น ตัดค่าไฟพัดลมและปั๊มลงได้ทันที 20–40% ด้วย VFD
+
+**หลักคิดวันนี้:** การเดินมอเตอร์เต็มรอบแล้วหรี่วาล์วหรือดักลม เปรียบเหมือนการเหยียบคันเร่งมิดพร้อมกับเหยียบเบรก การใช้ VFD ปรับรอบตามภาระความเย็นจริงช่วยลดพลังงานตามกฎยกกำลังสาม
+
+## 1. หน้างานบอกอะไร
+
+ค่าไฟพัดลม 800 kWh/เดือน
+"""
+
+
+def test_extract_tldr_takes_only_the_first_paragraph_of_a_real_sample():
+    tldr = DesignerAgent._extract_tldr(TLDR_REAL_MD)
+    assert tldr == ("ปรับรอบมอเตอร์แทนการหรี่วาล์วในคลังสินค้าห้องเย็น "
+                    "ตัดค่าไฟพัดลมและปั๊มลงได้ทันที 20–40% ด้วย VFD")
+    assert "หลักคิดวันนี้" not in tldr
+
+
+def test_extract_tldr_is_not_truncated_on_a_real_sample():
+    """The 140-char cut must be a no-op on real content: all six dry-run
+    samples had a 96–131 character TL;DR line."""
+    assert len(DesignerAgent._extract_tldr(TLDR_REAL_MD)) < 140
+
+
+def test_extract_tldr_stops_at_the_mental_model_without_a_blank_line():
+    md = TLDR_REAL_MD.replace("VFD\n\n**หลักคิด", "VFD\n**หลักคิด")
+    assert "หลักคิดวันนี้" not in DesignerAgent._extract_tldr(md)
+
+
+def test_extract_tldr_stops_at_the_next_section():
+    md = "## 💡 ประเด็นวันนี้\n\nประเด็นเดียวสั้น ๆ\n\n## 1. หัวข้อ\nเนื้อหา\n"
+    assert DesignerAgent._extract_tldr(md) == "ประเด็นเดียวสั้น ๆ"
+
+
+def test_extract_tldr_falls_back_to_the_mental_model_when_it_is_all_there_is():
+    md = "## 💡 ประเด็นวันนี้\n\n**หลักคิดวันนี้:** วัด COP ก่อนเสนอ solution\n\n## 1. หัวข้อ\n"
+    assert DesignerAgent._extract_tldr(md) == "หลักคิดวันนี้: วัด COP ก่อนเสนอ solution"
+
+
+def test_extract_tldr_returns_empty_when_the_section_is_missing():
+    assert DesignerAgent._extract_tldr("## 1. หัวข้อ\nเนื้อหา") == ""
+    assert DesignerAgent._extract_tldr("") == ""
+
+
+def test_extract_tldr_keeps_a_multi_line_first_paragraph():
+    """A soft-wrapped paragraph (no blank line) is still one paragraph."""
+    md = "## 💡 ประเด็นวันนี้\n\nบรรทัดแรก\nบรรทัดที่สอง\n\n**หลักคิดวันนี้:** x\n"
+    assert DesignerAgent._extract_tldr(md) == "บรรทัดแรก บรรทัดที่สอง"

@@ -22,9 +22,17 @@ section in each email can show:
 import json
 import logging
 import re
-from datetime import datetime
+from datetime import date, datetime
 
 logger = logging.getLogger(__name__)
+
+
+def _ordinal(iso_date: str) -> int:
+    """Convert ISO date string to ordinal for sorting. Returns 0 on parse error."""
+    try:
+        return date.fromisoformat(iso_date).toordinal()
+    except ValueError:
+        return 0
 
 MASTER_INDEX_FILENAME = "00-Master-Index.md"
 SUMMARIES_FILENAME = "__summaries.json"
@@ -72,6 +80,10 @@ class IndexBuilder:
         self.settings = settings
         self._articles_cache: list[dict] | None = None
         self._summaries_cache: dict | None = None
+        # True when the last load FAILED (as opposed to "file absent"); a
+        # failed load is never cached and blocks update_summary's rewrite.
+        # "Absent" is not cached either — see _load_summaries.
+        self._summaries_load_failed = False
         self._archive_index_cache: dict | None = None
 
     def _summaries_file_id(self) -> str | None:
@@ -93,6 +105,7 @@ class IndexBuilder:
             return entry["id"] if isinstance(entry, dict) else None
         except Exception as e:
             logger.warning(f"Could not query summaries file: {e}")
+            self._summaries_load_failed = True
             return None
 
     def _load_summaries(self) -> dict:
@@ -100,25 +113,36 @@ class IndexBuilder:
         when missing or unreadable — find_related stays robust either way."""
         if self._summaries_cache is not None:
             return self._summaries_cache
+        self._summaries_load_failed = False
         file_id = self._summaries_file_id()
+        if self._summaries_load_failed:
+            return {}  # not cached: a later call retries
         if not file_id:
-            self._summaries_cache = {}
+            # Deliberately NOT cached. A listing that succeeds but matches
+            # nothing looks exactly like "the file is there and this query
+            # missed it" (eventual consistency, a permission blip, a renamed
+            # parent) — and the miss is now ~8 minutes before the write,
+            # because recent_scenes() loads summaries at the top of the run.
+            # Re-querying at write time costs one cheap files.list; caching the
+            # verdict costs every stored TL;DR. A genuinely absent file still
+            # returns {} here, so the first-ever write goes through.
             return {}
         try:
             raw = self.drive.download_file(file_id)
         except Exception as e:
             logger.warning(f"download summaries failed: {e}")
-            self._summaries_cache = {}
+            self._summaries_load_failed = True
             return {}
         if not isinstance(raw, str) or not raw:
-            self._summaries_cache = {}
+            self._summaries_load_failed = True
             return {}
         try:
             data = json.loads(raw)
-            self._summaries_cache = data if isinstance(data, dict) else {}
         except (json.JSONDecodeError, TypeError):
-            logger.warning("__summaries.json malformed — treating as empty")
-            self._summaries_cache = {}
+            logger.warning("__summaries.json malformed — not overwriting it")
+            self._summaries_load_failed = True
+            return {}
+        self._summaries_cache = data if isinstance(data, dict) else {}
         return self._summaries_cache
 
     def _collect_email_archive_ids(self) -> dict[tuple[str, str], str]:
@@ -154,17 +178,26 @@ class IndexBuilder:
         return archives
 
     def update_summary(self, docx_id: str, tldr: str,
-                       html_id: str | None = None) -> str | None:
+                       html_id: str | None = None, *,
+                       scene: str = "", date: str = "") -> str | None:
         """Append/update an entry in __summaries.json. Called by main.py
         after each daily upload so future runs can show this article in
         their related section with a real summary + browser link."""
         if not docx_id:
             return None
         summaries = self._load_summaries()
+        if self._summaries_load_failed:
+            logger.warning("update_summary skipped: summaries could not be "
+                           "loaded, refusing to overwrite the stored file")
+            return None
         summaries[docx_id] = {
             "tldr": tldr or "",
             "html_id": html_id or "",
         }
+        if scene:
+            summaries[docx_id]["scene"] = scene
+        if date:
+            summaries[docx_id]["date"] = date
         self._summaries_cache = summaries  # keep in-memory copy fresh
         return self.drive.update_or_create(
             filename=SUMMARIES_FILENAME,
@@ -172,6 +205,17 @@ class IndexBuilder:
             folder_id=self.settings.FOLDER_KNOWLEDGE_BASE,
             mime_type="application/json",
         )
+
+    def recent_scenes(self, limit: int = 2, exclude_date: str = "") -> list[dict]:
+        """Most recent stored scenes, newest first (spec 4 no-repeat rule).
+        Only records dated strictly BEFORE `exclude_date` count, so a
+        re-run or backfill sees the same history as the first run."""
+        summaries = self._load_summaries()
+        rows = [v for v in summaries.values()
+                if isinstance(v, dict) and v.get("scene")
+                and (not exclude_date or v.get("date", "") < exclude_date)]
+        rows.sort(key=lambda r: r.get("date", ""), reverse=True)
+        return rows[:limit]
 
     def collect_articles(self) -> list[dict]:
         """Walk KB and parse every article filename we recognize.
@@ -230,6 +274,46 @@ class IndexBuilder:
                     or ""
                 )
         return ranked
+
+    def recall_candidates(self, today, cluster: str = "", limit: int = 2,
+                          min_age_days: int = 3,
+                          max_age_days: int = 14) -> list[dict]:
+        """Articles old enough to be worth recalling, young enough to be
+        recallable (spec A3). Same cluster first, newest first. Best-effort:
+        any Drive or summaries failure returns [] so the daily email still
+        goes out (spec C3). One malformed article is skipped; others proceed."""
+        try:
+            articles = self.collect_articles()
+            summaries = self._load_summaries()
+
+            picks: list[dict] = []
+            skipped = 0
+            for a in articles:
+                try:
+                    published = date.fromisoformat(a["date"])
+                    age = (today - published).days
+                    if not (min_age_days <= age <= max_age_days):
+                        continue
+                    tldr = (summaries.get(a["id"], {}) or {}).get("tldr", "").strip()
+                    if not tldr:
+                        continue
+                    picks.append({"title": a["title"], "date": a["date"], "tldr": tldr,
+                                  "cluster": a.get("cluster", "General")})
+                except Exception:  # noqa: BLE001 — one bad row must not cost the block
+                    skipped += 1
+                    continue
+
+            if skipped:
+                logger.warning(
+                    f"recall_candidates skipped {skipped}/{len(articles)} malformed article(s)")
+
+            picks.sort(key=lambda p: (p["cluster"] != cluster, -_ordinal(p["date"])))
+            return picks[:limit]
+        except Exception as e:  # noqa: BLE001 — best-effort by design
+            logger.warning(
+                f"recall_candidates unavailable (non-blocking): "
+                f"{type(e).__name__}: {e}", exc_info=True)
+            return []
 
     def render(self, articles: list[dict]) -> str:
         if not articles:

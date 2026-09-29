@@ -50,6 +50,13 @@ KCAPTURE_RE = re.compile(
     r'<h2>(?:\d+\.\s*)?Knowledge Capture</h2>(.*?)(?=<h2|$)',
     flags=re.DOTALL | re.IGNORECASE,
 )
+# Kit / recall / answers boxes (translator emits these headings by emoji).
+# These run AFTER CMOVE_RE/KCAPTURE_RE, whose <h2> is already a <div>, so the
+# lookahead must stop at those divs too or the kit swallows Knowledge Capture.
+_END = r'(?=<h2|<div class="(?:cmove|kcapture)"|$)'
+KIT_RE = re.compile(r'<h2>🧰\s*(.*?)</h2>(.*?)' + _END, re.DOTALL)
+RECALL_RE = re.compile(r'<h2>🔁\s*(.*?)</h2>(.*?)' + _END, re.DOTALL)
+ANSWERS_RE = re.compile(r'<h2>🔑\s*(.*?)</h2>(.*?)' + _END, re.DOTALL)
 # Inline format (legacy): "📖 ศัพท์น่ารู้: A = ... | B = ..."
 GLOSSARY_INLINE_RE = re.compile(
     r'<p>(📖\s*ศัพท์น่ารู้:.+?)</p>',
@@ -66,10 +73,17 @@ TLDR_HEADING_RE = re.compile(
     r'^##\s*💡\s*ประเด็นวันนี้\s*$',
     flags=re.MULTILINE,
 )
+# Stops at the first blank line, so Task 4's '**หลักคิดวันนี้:** …' paragraph
+# stays out of it: the TL;DR is persisted to __summaries.json and reused as the
+# inbox preheader, the site card snippet, <meta name="description"> and the
+# text quoted into next week's recall prompt — a 140-char cut through two
+# paragraphs polluted all of them.
 TLDR_BODY_RE = re.compile(
-    r'##\s*💡\s*ประเด็นวันนี้\s*\n+(.+?)(?=\n##|\Z)',
+    r'##\s*💡\s*ประเด็นวันนี้\s*\n+(.+?)(?=\n[ \t]*\n|\n##|\Z)',
     flags=re.DOTALL,
 )
+# Belt and braces: same cut when the model forgets the blank line.
+MENTAL_MODEL_MARK = 'หลักคิดวันนี้'
 # Strip markdown noise to estimate Thai reading time by character count.
 MD_NOISE_RE = re.compile(r'[#*_`>\[\]\(\)\|]')
 
@@ -150,6 +164,12 @@ body{{font-family:'CordiaUPC','Cordia New','Sarabun','Segoe UI',sans-serif;backg
 .kcapture{{background:#FFF8E1;border:1px solid #FFD54F;padding:16px;margin:20px 0;border-radius:6px}}
 .kcapture h3{{color:#F57F17;margin:0 0 8px;font-size:19px}}
 .kcapture strong{{color:#E65100}}
+.bd .kit{{background:#F1F8E9;border:1px solid #C5E1A5;border-radius:8px;padding:14px 18px;margin:18px 0}}
+.bd .kit h3{{margin:0 0 8px;font-size:18px;color:#33691E}}
+.bd .recall{{background:#FFF8E1;border:1px solid #FFE082;border-radius:8px;padding:14px 18px;margin:18px 0}}
+.bd .recall h3{{margin:0 0 8px;font-size:18px;color:#F57F17}}
+.bd .answers{{background:#FAFAFA;border:1px dashed #BDBDBD;border-radius:8px;padding:12px 18px;margin:18px 0;color:#555;font-size:16px}}
+.bd .answers h3{{margin:0 0 6px;font-size:16px;color:#757575}}
 .bd blockquote{{margin:14px 0;padding:10px 16px;border-left:3px solid {color};background:rgba({rgba},0.05);color:#555;font-style:italic;font-size:18px}}
 .bd blockquote p{{margin:0}}
 .glossary{{background:#F5F5F5;padding:16px 20px;margin-top:24px;border-radius:6px;font-size:18px;color:#555;border-top:3px solid {color}}}
@@ -241,6 +261,12 @@ body{{font-family:'CordiaUPC','Cordia New','Sarabun','Segoe UI',sans-serif;backg
             r'<div class="kcapture"><h3>🧠 Knowledge Capture</h3>\1</div>',
             html,
         )
+        html = KIT_RE.sub(
+            r'<div class="kit"><h3>🧰 \1</h3>\2</div>', html)
+        html = RECALL_RE.sub(
+            r'<div class="recall"><h3>🔁 \1</h3>\2</div>', html)
+        html = ANSWERS_RE.sub(
+            r'<div class="answers"><h3>🔑 \1</h3>\2</div>', html)
         html = GLOSSARY_LIST_RE.sub(
             r'<div class="glossary"><strong>📖 ศัพท์น่ารู้</strong>'
             r'<ul class="glossary-list">\1</ul></div>',
@@ -304,6 +330,12 @@ body{{font-family:'CordiaUPC','Cordia New','Sarabun','Segoe UI',sans-serif;backg
 .bd strong{{color:{color}}}
 .bd blockquote{{margin:14px 0;padding:10px 16px;border-left:3px solid {color};background:rgba({rgba},0.05);color:#555;font-style:italic;font-size:18px}}
 .bd blockquote p{{margin:0}}
+.bd .recall{{background:#FFF8E1;border:1px solid #FFE082;border-radius:8px;padding:14px 18px;margin:18px 0}}
+.bd .recall h3{{margin:0 0 8px;font-size:19px;color:#F57F17}}
+.bd .answers{{background:#FAFAFA;border:1px dashed #BDBDBD;border-radius:8px;padding:12px 18px;margin:18px 0;color:#555}}
+.bd .answers h3{{margin:0 0 6px;font-size:18px;color:#757575}}
+.bd .kcapture{{background:#FFF8E1;border:1px solid #FFD54F;border-radius:8px;padding:14px 18px;margin:18px 0}}
+.bd .kcapture h3{{margin:0 0 8px;font-size:19px;color:#F57F17}}
 .ftr{{background:#ECEFF1;padding:16px 24px;font-size:16px;color:#546E7A;border-top:1px solid #ddd}}
 .ftr-mission{{margin-top:8px;color:#546E7A;font-style:italic}}
 .preheader{{display:none!important;visibility:hidden;opacity:0;color:transparent;height:0;width:0;font-size:1px;line-height:1px;mso-hide:all;overflow:hidden}}
@@ -380,13 +412,20 @@ body{{font-family:'CordiaUPC','Cordia New','Sarabun','Segoe UI',sans-serif;backg
 
     @staticmethod
     def _extract_tldr(md: str) -> str:
-        """Pull plain-text content of the `## 💡 ประเด็นวันนี้` section so
-        we can show it in the inbox preheader. Falls back to empty string
-        when Translator output didn't include the section."""
+        """Pull the plain-text FIRST PARAGRAPH of the `## 💡 ประเด็นวันนี้`
+        section so we can show it in the inbox preheader. The mental-model
+        paragraph that follows it is a separate thought and must not be
+        half-swallowed by the 140-char cut. Falls back to empty string when
+        Translator output didn't include the section."""
         m = TLDR_BODY_RE.search(md or "")
         if not m:
             return ""
         text = m.group(1).strip()
+        cut = text.find(MENTAL_MODEL_MARK)
+        # Nothing but markdown emphasis before the mark means the TL;DR line
+        # is missing — then the mental model is the best snippet we have.
+        if cut != -1 and text[:cut].strip(" *\t\n"):
+            text = text[:cut].rstrip(" *\t\n")
         # Strip markdown emphasis + collapse whitespace; preheaders should
         # be a single short line.
         text = MD_NOISE_RE.sub("", text)

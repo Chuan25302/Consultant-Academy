@@ -11,19 +11,54 @@ Two-stage check (cheap → expensive):
 import logging
 import re
 
+from src.agents.formats import KIT_SPECS, listed_figures_in
 from src.integrations.gemini_client import GeminiClient
 
 logger = logging.getLogger(__name__)
 
 # Look for numbers followed by typical engineering/finance units.
-# Matches "300 kWh", "4.5 บาท", "20%", "2.5 ปี", "5 kW", "1.2 MW".
+# Matches "300 kWh", "4.5 บาท", "20%", "2.5 ปี", "7 °C", "250 Pa", "1450 rpm".
 NUMBER_WITH_UNIT_RE = re.compile(
-    r"\d+(?:[.,]\d+)?\s*(?:บาท|baht|THB|kWh|MWh|kW|MW|%|ปี|year|hours?|ชม)",
+    r"\d+(?:[.,]\d+)?\s*(?:"
+    r"บาท|ชม|ชั่วโมง|ตัน|%|°C|℃|ปี"
+    # Latin units must end the word: "2 parameters" / "3 barriers" are not readings.
+    r"|(?:baht|THB|kWh|MWh|kW|MW|years?|hours?|kPa|Pa|bar|kg|tCO2e"
+    r"|(?-i:Hz|rpm|ppm|RT|V|A|L/s|m3/h|m³/h))(?![A-Za-z])"
+    r")",
     re.IGNORECASE,
 )
-GLOSSARY_RE = re.compile(r"📖|ศัพท์น่ารู้")
-CASE_STUDY_RE = re.compile(r"Case\s*Study|Situation|Complication", re.IGNORECASE)
-TAKEAWAY_RE = re.compile(r"Takeaways?|ทีม\s*Sales|ทีม\s*Technical", re.IGNORECASE)
+KIT_HEADING_RE = re.compile(r"^##\s*🧰\s*\S", re.MULTILINE)
+CHECKBOX_RE = re.compile(r"^- ☐ ", re.MULTILINE)
+SQUARE_BOX_RE = re.compile(r"^- \[ ?\]", re.MULTILINE)
+OBJECTION_RE = re.compile(r"\*\*ลูกค้า:\*\*")
+FORMULA_RE = re.compile(r"^[^#\n]*=[^\n]*$", re.MULTILINE)
+SOURCE_TAG_RE = re.compile(r"—\s*ที่มา\s*:")
+RECALL_RE = re.compile(r"^##\s*🔁", re.MULTILINE)
+ANSWER_RE = re.compile(r"^##\s*🔑", re.MULTILINE)
+
+# Length gate (A5). Thai has no spaces, so a word count cannot measure a Thai
+# draft — len(md.split()) stayed near 700 for a 5,000-character article and the
+# old 1,200-word ceiling could never fire. Measured on the six-pillar dry run of
+# 2026-09-29 (6/6 samples, article body only, Drive/email chrome stripped):
+# 4,203 / 4,353 / 4,469 / 4,646 / 4,703 / 5,464 Thai characters. 7,000 sits
+# ~28% above the longest real sample, so a normal long draft never trips it and
+# only a runaway one (~1.5× the A5 word target) does.
+MAX_THAI_CHARS = 7000
+THAI_CHAR_RE = re.compile(r"[฀-๿]")
+def _squash(text: str) -> str:
+    """Whitespace-insensitive form for containment checks (multi-word scenes)."""
+    return re.sub(r"\s+", "", text)
+
+
+_H2_RE = re.compile(r"^## ", re.MULTILINE)
+# The four anchors, mirroring the heading shapes designer_agent parses
+# (CMOVE_RE / kcapture / glossary list form). Do not loosen.
+ANCHOR_PATTERNS = {
+    "💡 ประเด็นวันนี้": re.compile(r"^##\s*💡\s*ประเด็นวันนี้", re.MULTILINE),
+    "Consultant Move": re.compile(r"^##\s*(?:\d+\.\s*)?Consultant Move\s*$", re.MULTILINE),
+    "Knowledge Capture": re.compile(r"^##\s*(?:\d+\.\s*)?Knowledge Capture\s*$", re.MULTILINE),
+    "📖 ศัพท์น่ารู้": re.compile(r"^##\s*📖\s*ศัพท์น่ารู้\s*$", re.MULTILINE),
+}
 
 # Anti-hallucination spot check — catches leftover specifics the FactChecker
 # might have missed. Person-name detection in Thai is unreliable (no spaces
@@ -72,7 +107,11 @@ PROMPT = """
 - เก็บโครงสร้างเดิมไว้ ภาษาไทยเป็นหลัก ทับศัพท์ English ได้
 - เพิ่มสิ่งที่ขาด อย่าลบของที่มีอยู่
 - ตัวเลขต้องสมเหตุสมผล (ไม่กุขึ้น)
-- ความยาวรวมไม่เกิน 1,000 คำ
+- **ห้ามแต่งที่มาของตัวเลข** — ใส่ '— ที่มา: ...' ได้เฉพาะตัวเลขที่อยู่ในรายการ
+  'ข้อมูลอ้างอิง' โดยใช้ที่มาตามที่รายการนั้นระบุ ตัวเลขอื่นให้เขียนว่า 'ประมาณการ'
+  โดยไม่ใส่ที่มาและไม่อ้างชื่อมาตรฐานใด ๆ
+- ความยาวรวมไม่เกิน ~930 คำ (เนื้อหาหลัก 600–700 + เครื่องมือ ~150 + ทวนของเก่า ~80)
+  หรือประมาณ 7,000 ตัวอักษรไทย และห้ามลบหัวข้อ 🧰 / 🔁 / 🔑 ที่มีอยู่
 
 เนื้อหาเดิม:
 {content}
@@ -82,49 +121,129 @@ PROMPT = """
 class EditorAgent:
     def __init__(self, gemini: GeminiClient):
         self.gemini = gemini
+        self.last_repair_count = 0  # 1 when review() fired its repair call
 
     @staticmethod
     def strip_latex(md: str) -> str:
         return LATEX_INLINE_RE.sub(lambda m: _delatex(m.group(1)), md)
 
-    def review(self, md: str) -> str:
+    def review(self, md: str, *, kit: str = "", scene: str = "",
+               recall: bool = False) -> str:
+        self.last_repair_count = 0
         md = self.strip_latex(md)
-        issues = self.check(md)
+        issues = self.check(md, kit=kit, scene=scene, recall=recall)
         if not issues:
             logger.info("✓ Editor: content passes all checks (no LLM call)")
             return md
 
         logger.info(f"✏️  Editor: regenerating to fix {len(issues)} issue(s): {issues}")
+        self.last_repair_count = 1
         bullet_issues = "\n".join(f"- {i}" for i in issues)
         improved = self.gemini.generate(
             PROMPT.format(issues=bullet_issues, content=md),
             agent_tag="editor",
         )
         if improved and not improved.startswith("[Error"):
-            return self.strip_latex(improved)
+            repaired = self.strip_latex(improved)
+            # One re-check, no repair loop (cost): make a failed repair visible.
+            remaining = self.check(repaired, kit=kit, scene=scene, recall=recall)
+            if remaining:
+                logger.warning(
+                    f"Editor: repair still failing {len(remaining)} check(s): {remaining}")
+            return repaired
         logger.warning("Editor regen failed — keeping original")
         return md
 
     @staticmethod
-    def check(md: str) -> list[str]:
+    def _kit_section(md: str) -> str:
+        """Body of the '## 🧰' section, up to the next '## ' heading."""
+        m = KIT_HEADING_RE.search(md)
+        if not m:
+            return ""
+        rest = md[m.end():]
+        nxt = _H2_RE.search(rest)
+        return rest[:nxt.start()] if nxt else rest
+
+    @staticmethod
+    def _kit_issues(md: str, kit: str) -> list[str]:
+        """Gates that enforce KIT_SPECS instructions, scoped to the kit section
+        so lines elsewhere (glossary '=', recall '?') cannot satisfy them."""
+        issues: list[str] = []
+        section = EditorAgent._kit_section(md)
+        if kit == "checklist":
+            if SQUARE_BOX_RE.search(md):
+                issues.append("checklist ใช้ '- [ ]' — ต้องใช้ '- ☐ ' เท่านั้น")
+            boxes = CHECKBOX_RE.findall(section)
+            if len(boxes) < 6:
+                issues.append(f"checklist มี {len(boxes)} ข้อ ต้องการอย่างน้อย 6")
+            with_numbers = [ln for ln in section.splitlines()
+                            if ln.startswith("- ☐ ") and NUMBER_WITH_UNIT_RE.search(ln)]
+            if len(with_numbers) < 3:
+                issues.append("checklist ต้องมีข้อที่ระบุค่าปกติเป็นตัวเลข+หน่วย ≥3 ข้อ")
+        elif kit == "questions":
+            questions = [ln for ln in section.splitlines() if ln.strip().endswith("?")]
+            if len(questions) < 4:
+                issues.append(f"ชุดคำถามมี {len(questions)} ข้อ ต้องการอย่างน้อย 4")
+            if len(OBJECTION_RE.findall(section)) < 2:
+                issues.append("ต้องมี objection พร้อมคำตอบอย่างน้อย 2 ชุด (**ลูกค้า:**)")
+        elif kit == "calculator":
+            if not FORMULA_RE.search(section):
+                issues.append("สูตรคำนวณต้องมีบรรทัดที่มีเครื่องหมาย '='")
+            # A7 as resolved by formats.py: ONLY a figure quoted from the
+            # approved REFERENCE_FIGURES list needs its source tag. A kit
+            # built from fact-checked content or from 'ประมาณการ' values has
+            # no source to quote — demanding one made the repair call invent
+            # it, in the section consultants read out to customers.
+            quoted = listed_figures_in(section)
+            if quoted and not SOURCE_TAG_RE.search(section):
+                issues.append(
+                    f"ตัวเลข {', '.join(quoted)} มาจากรายการ 'ข้อมูลอ้างอิง' "
+                    "ต้องกำกับ '— ที่มา: ...' ตามที่ระบุในรายการนั้น "
+                    "(ห้ามแต่งที่มาใหม่ ตัวเลขอื่นไม่ต้องมีที่มา)"
+                )
+        return issues
+
+    @staticmethod
+    def check(md: str, kit: str = "", scene: str = "",
+              recall: bool = False) -> list[str]:
         issues = []
-        if not CASE_STUDY_RE.search(md):
-            issues.append("ขาด Case Study section (Situation / Complication / Result)")
-        if not TAKEAWAY_RE.search(md):
-            issues.append("ขาด Takeaways section (ทีม Sales / ทีม Technical)")
-        if not GLOSSARY_RE.search(md):
-            issues.append("ขาด glossary บรรทัดสุดท้าย (📖 ศัพท์น่ารู้: ...)")
+        for name, pattern in ANCHOR_PATTERNS.items():
+            if not pattern.search(md):
+                issues.append(f"ขาด anchor '{name}' — designer/recap จะพัง")
+
         nums = NUMBER_WITH_UNIT_RE.findall(md)
         if len(nums) < 3:
             issues.append(
                 f"มีตัวเลขจริง+หน่วย {len(nums)} จุด ต้องการอย่างน้อย 3 "
                 "(เช่น บาท / kWh / % / ปี)"
             )
-        word_count = len(md.split())
-        if word_count > 1200:
-            issues.append(f"เนื้อหายาว {word_count} คำ ต้องการไม่เกิน 1,000")
+        thai_chars = len(THAI_CHAR_RE.findall(md))
+        if thai_chars > MAX_THAI_CHARS:
+            issues.append(
+                f"เนื้อหายาว {thai_chars:,} ตัวอักษรไทย "
+                f"ต้องการไม่เกิน {MAX_THAI_CHARS:,} "
+                "(เนื้อหาหลัก 600–700 คำ + เครื่องมือ ~150 + ทวนของเก่า ~80)"
+            )
         # Anti-hallucination spot check (FactChecker should have cleaned this,
         # but Editor catches anything that slipped through).
         if SPECIFIC_COMPANY_RE.search(md):
             issues.append("พบชื่อบริษัทเฉพาะ — เปลี่ยนเป็น 'โรงงานขนาด X แห่งหนึ่ง'")
+
+        if kit:
+            spec = KIT_SPECS.get(kit)
+            if spec is None:
+                issues.append(f"ไม่รู้จัก kit '{kit}' — ตรวจ kit ไม่ได้")
+            elif not KIT_HEADING_RE.search(md):
+                issues.append(f"ขาดหัวข้อเครื่องมือ '## 🧰 {spec.label}'")
+            else:
+                issues += EditorAgent._kit_issues(md, kit)
+        if scene and _squash(scene) not in _squash(md):
+            issues.append(f"ไม่ได้ใช้ฉากที่กำหนด — ต้องอ้างถึง '{scene}'")
+        if recall:
+            if not RECALL_RE.search(md):
+                issues.append("ขาดบล็อก '## 🔁 ทวนของเก่า' ทั้งที่มีของเก่าให้ทวน")
+            if not ANSWER_RE.search(md):
+                issues.append("ขาดกล่องเฉลย '## 🔑 เฉลย' ของบล็อกทวนของเก่า")
+        elif RECALL_RE.search(md) and not ANSWER_RE.search(md):
+            issues.append("มี '🔁 ทวนของเก่า' แต่ขาดกล่องเฉลย '## 🔑 เฉลย'")
         return issues

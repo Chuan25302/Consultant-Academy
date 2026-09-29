@@ -25,6 +25,7 @@ from src.agents.designer_agent import DesignerAgent
 from src.agents.editor_agent import EditorAgent
 from src.agents.expert_agent import ExpertAgent
 from src.agents.factchecker_agent import FactCheckerAgent
+from src.agents.formats import profile_for, scene_for
 from src.agents.image_agent import ImageAgent
 from src.agents.industry_agent import IndustryAgent
 from src.agents.planner_agent import CalendarPlannerAgent
@@ -63,6 +64,21 @@ MONTHS_TH = {
 }
 
 DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+
+
+def _recent_scenes(index, date_str: str) -> list[str]:
+    """Scenes used on the last two publication days, so today differs.
+
+    Excludes the date being generated so a re-run reproduces that day's
+    scene. Best-effort: on any failure, [] simply means 'no constraint'.
+    """
+    try:
+        return [e["scene"] for e in
+                index.recent_scenes(limit=2, exclude_date=date_str)
+                if e.get("scene")]
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"scene history unavailable (non-blocking): {e}")
+        return []
 
 
 def main(date: str = None, dry_run: bool = False,
@@ -174,12 +190,28 @@ def main(date: str = None, dry_run: bool = False,
         combined_technical = f"{expert}\n\n## บริบทอุตสาหกรรม\n{industry_ctx}"
     verified = FactCheckerAgent(gemini).review(combined_technical, research)
 
-    translated = require_ok("translator", TranslatorAgent(gemini).simplify(
-        verified, None, topic["topic"], topic["pillar"]))
-
-    edited = EditorAgent(gemini).review(translated)
-
     index = IndexBuilder(drive, s)
+    date_str = topic["date"].strftime("%Y-%m-%d")
+    profile = profile_for(topic["pillar"])
+    scene = scene_for(topic["date"].date(), topic.get("industry", "ทั่วไป"),
+                      profile.scenes, recent=_recent_scenes(index, date_str))
+    try:
+        recall_items = index.recall_candidates(
+            topic["date"].date(), cluster=topic.get("cluster", "General"))
+    except Exception as e:  # noqa: BLE001 - recall is best-effort (spec C3)
+        logger.warning(f"recall block skipped (non-blocking): {e}")
+        recall_items = []
+
+    translated = require_ok("translator", TranslatorAgent(gemini).simplify(
+        verified, None, topic["topic"], topic["pillar"],
+        level=int(topic.get("level", 1) or 1),
+        industry=topic.get("industry", "ทั่วไป"),
+        scene=scene, recall_items=recall_items))
+
+    editor = EditorAgent(gemini)
+    edited = editor.review(
+        translated, kit=profile.kit, scene=scene, recall=bool(recall_items))
+
     final_md = require_ok("editor", edited)
 
     # Optional infographic (gated on FOLDER_IMAGES + Vertex AI). Failures
@@ -197,7 +229,6 @@ def main(date: str = None, dry_run: bool = False,
     email_html = DesignerAgent.create_email(final_md, topic, image_cid=image_cid)
     archive_html = DesignerAgent.create_email(final_md, topic, image_bytes=image_bytes)
 
-    date_str   = topic["date"].strftime("%Y-%m-%d")
     month_path = topic["date"].strftime("%Y/%B").lower()
     level      = topic.get("level", 1)
     cluster    = topic.get("cluster", "General")
@@ -257,7 +288,8 @@ def main(date: str = None, dry_run: bool = False,
         if docx_id:
             tldr = DesignerAgent._extract_tldr(final_md)
             try:
-                index.update_summary(docx_id, tldr, html_id)
+                index.update_summary(docx_id, tldr, html_id, scene=scene,
+                                     date=date_str)
             except Exception as e:
                 logger.warning(f"update_summary failed (non-blocking): {e}")
 
@@ -290,6 +322,8 @@ def main(date: str = None, dry_run: bool = False,
 
     daily_cost = cost.daily_total()
     logger.info(f"💰 Daily cost: ${daily_cost:.4f}")
+    logger.info(f"📐 shape={topic['pillar']} kit={profile.kit} "
+                f"recall={len(recall_items)} repairs={editor.last_repair_count}")
     logger.info("✅ DONE")
     sys.stdout.flush()
 

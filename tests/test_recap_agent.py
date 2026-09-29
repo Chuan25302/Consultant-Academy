@@ -4,6 +4,7 @@ Mon–Fri post bodies into Gemini and emails the result.
 No real Drive/SMTP/Vertex calls — everything is mocked."""
 from __future__ import annotations
 
+import re
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -174,31 +175,6 @@ def test_generate_feeds_full_bodies_into_prompt():
         assert body_snippet in sent_prompt, f"missing in prompt: {body_snippet}"
 
 
-def test_prompt_has_four_sections_and_anti_hallucination_guard():
-    """The new prompt must define all four output sections AND tell the
-    LLM not to invent formulas — that guard is the only thing keeping
-    'Formulas & Heuristics' honest."""
-    bodies = {"2026-05-11": "<p>x</p>"}  # minimal — just need one day
-    drive = _make_drive_with_week(bodies)
-    gemini = MagicMock()
-    gemini.generate.return_value = "## stub"
-
-    with patch("src.agents.recap_agent.DesignerAgent.create_recap_email",
-               return_value="<html>recap</html>"), \
-         patch("src.agents.recap_agent.send_daily_email", return_value=True):
-        RecapAgent(gemini, drive, _fake_settings()).generate_and_upload(
-            today=_saturday_2026_05_16(), dry_run=False,
-        )
-
-    sent_prompt = gemini.generate.call_args.args[0]
-    assert "Key Takeaways" in sent_prompt
-    assert "Knowledge Capture" in sent_prompt
-    assert "Formulas & Heuristics" in sent_prompt
-    assert "ใช้กับลูกค้าได้เลย" in sent_prompt
-    # Anti-hallucination guard (free-form match — exact wording may vary):
-    assert "ห้ามแต่ง" in sent_prompt or "อย่าแต่ง" in sent_prompt
-
-
 def test_multiple_emails_per_day_collapse_to_one_header():
     """If a single Mon–Fri date has two [Email] files (re-run / backfill
     case), the prompt should still have ONE day header for that date
@@ -367,3 +343,94 @@ def test_recap_email_send_failure_raises():
         RecapAgent(gemini, drive, _fake_settings()).generate_and_upload(
             today=_saturday_2026_05_16(), dry_run=False,
         )
+
+
+def _recap_prompt() -> str:
+    drive = _make_drive_with_week({"2026-05-11": "<p>x</p>"})
+    gemini = MagicMock()
+    gemini.generate.return_value = "## stub"
+    with patch("src.agents.recap_agent.DesignerAgent.create_recap_email",
+               return_value="<html>r</html>"), \
+         patch("src.agents.recap_agent.send_daily_email", return_value=True):
+        RecapAgent(gemini, drive, _fake_settings()).generate_and_upload(
+            today=_saturday_2026_05_16(), dry_run=False)
+    return gemini.generate.call_args.args[0]
+
+
+def test_recap_prompt_asks_for_retrieval_not_a_summary():
+    prompt = _recap_prompt()
+    assert "🔁 ทวนสัปดาห์นี้" in prompt and "🔑 เฉลย" in prompt
+    assert "5 คำถาม" in prompt
+    assert "Knowledge Capture" in prompt, "anchor must survive (renderer + site)"
+    assert "Key Takeaways" not in prompt
+    # answers live in their own section, after the questions
+    assert prompt.index("🔁 ทวนสัปดาห์นี้") < prompt.index("🔑 เฉลย")
+
+
+def test_recap_prompt_is_one_way_and_keeps_word_budget():
+    prompt = _recap_prompt()
+    # a reply/form request may appear only inside the prohibition sentences
+    stripped = (prompt.replace("ห้ามขอให้ผู้อ่านตอบกลับอีเมล", "")
+                      .replace("ห้ามขอให้กรอกฟอร์ม", ""))
+    for term in ("ตอบกลับ", "ฟอร์ม", "reply", "Reply", "ส่งกลับ", "แจ้งกลับ",
+                 "ส่งคำตอบ", "กรอก"):
+        assert term not in stripped, f"one-way mail must not ask: {term}"
+    assert "ห้ามขอให้ผู้อ่านตอบกลับอีเมล" in prompt
+    assert "ไม่เกิน 500 คำ" in prompt
+    assert "ทวนของเก่า" not in prompt, "daily wording must stay distinct"
+
+
+def test_recap_prompt_keeps_anti_fabrication_rule():
+    assert "ห้ามแต่ง" in _recap_prompt()
+
+
+def _skeleton_from_prompt() -> str:
+    """Headings exactly as the prompt tells the LLM to emit them."""
+    from src.agents.recap_agent import PROMPT
+    lines = []
+    for line in PROMPT.splitlines():
+        if re.match(r"^#{2,3} ", line):
+            lines += [line.replace("{week}", "20"), "", "- x", ""]
+    return "\n".join(lines)
+
+
+def test_recap_markdown_renders_recall_kcapture_answers_as_sibling_boxes():
+    from src.agents.designer_agent import DesignerAgent
+    html = DesignerAgent.create_recap_email(
+        _skeleton_from_prompt(), 20,
+        [{"day_th": "จ", "topic": "t", "date_th": "11 พ.ค."}],
+        _saturday_2026_05_16())
+    assert 'class="recall"' in html and 'class="answers"' in html
+    assert 'class="kcapture"' in html, "Knowledge Capture must render as its own box"
+    recall, kc, ans = (html.index(f'class="{c}"')
+                       for c in ("recall", "kcapture", "answers"))
+    assert recall < kc < ans
+    # siblings, not nested: each box closes before the next opens
+    assert html.index("</div>", recall) < kc
+    assert html.index("</div>", kc) < ans
+    # premailer inlined the recall/answers rules
+    assert "#FFF8E1" in html and "dashed" in html
+
+
+def test_strip_html_removes_the_daily_recall_and_answer_boxes():
+    """A weekday email carries its own 🔁 recall questions and 🔑 answers
+    (A3). They are LAST week's material, not this week's — leaving them in the
+    digest made Saturday re-ask Monday's question and lift Monday's answer.
+    Fixture: a real 2026-10-05 TECHNICAL archive from the 2026-09-29 dry run
+    (hero image replaced by a cid: reference)."""
+    html = (Path(__file__).parent / "fixtures"
+            / "email_archive_2026-10-05_TECHNICAL.html").read_text(encoding="utf-8")
+    # The fixture really does contain both boxes and their text.
+    assert 'class="recall"' in html and 'class="answers"' in html
+    assert "ทวนของเก่า" in html and "เฉลย" in html
+
+    out = _strip_html_to_text(html)
+
+    assert "ทวนของเก่า" not in out
+    assert "🔑 เฉลย" not in out
+    # the recall question and its answer are both gone, verbatim
+    assert "Parasitic Load และ Capacity Factor ของโรงไฟฟ้าชีวมวลอย่างไร?" not in out
+    assert "BESS ทำหน้าที่ตอบสนองการจ่ายไฟฟ้าทันที" not in out
+    # the article body and its kit survive
+    assert "🧰" in out
+    assert "VFD" in out

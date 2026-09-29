@@ -1,7 +1,9 @@
 """Tests for FactCheckerAgent — heuristic flags + LLM-skip-when-clean."""
+import re
+from pathlib import Path
 from unittest.mock import MagicMock
 
-from src.agents.factchecker_agent import FactCheckerAgent
+from src.agents.factchecker_agent import PROMPT, FactCheckerAgent
 
 CLEAN_CONTENT = """## สถานการณ์
 โรงงานขนาดกลางในนิคมอุตสาหกรรมแห่งหนึ่ง ใช้พลังงานประมาณ 200,000 บาท/เดือน
@@ -102,3 +104,23 @@ def test_flag_count_is_capped():
     fc = FactCheckerAgent(gemini)
     flags = fc._heuristic_flags(md, RESEARCH_DATA)
     assert len(flags) <= 10
+
+
+def test_prompt_only_protects_sections_the_pipeline_still_emits():
+    """The prompt used to order 'ห้ามลบ Case Study / Takeaways / glossary
+    sections'. FactChecker reviews the EXPERT (+ industry) markdown, which
+    never had a Case Study or Takeaways section — and Takeaways no longer
+    exists anywhere in the pipeline. Every heading the prompt names must be a
+    heading something upstream actually writes."""
+    root = Path(__file__).resolve().parent.parent
+    emitted = (
+        (root / "src" / "agents" / "expert_agent.py").read_text(encoding="utf-8")
+        + (root / "src" / "agents" / "industry_agent.py").read_text(encoding="utf-8")
+        + (root / "src" / "main.py").read_text(encoding="utf-8")
+    )
+    assert "Takeaways" not in PROMPT
+    assert "Case Study" not in PROMPT
+    named = re.findall(r'"## ([^"]+?)"', PROMPT)
+    assert named, "the prompt should still name the sections it protects"
+    for heading in named:
+        assert f"## {heading}" in emitted, heading
