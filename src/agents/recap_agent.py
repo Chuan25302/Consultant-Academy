@@ -1,7 +1,7 @@
 """
 Recap Agent — runs on RECAP days (typically Saturday) via the daily routine.
-Downloads Mon–Fri [Email] archive bodies, extracts a 4-section knowledge
-capture (Takeaways / Knowledge Capture / Formulas & Heuristics / Apply)
+Downloads Mon–Fri [Email] archive bodies, turns them into a retrieval
+recap (5 questions / Knowledge Capture / answers)
 via Gemini, uploads [Recap] HTML to Drive, and emails it to the team.
 """
 import html as html_module
@@ -84,29 +84,26 @@ PROMPT = """คุณคือผู้สรุปและจับใจค�
 
 ---
 
-จงเขียน Markdown ภาษาไทย แบ่งเป็น 4 หัวข้อตามนี้ ไม่เกิน 500 คำรวมทั้งหมด:
+จงเขียน Markdown ภาษาไทย ไม่เกิน 500 คำรวมทั้งหมด ตามโครงนี้:
 
-## สรุปประจำสัปดาห์ที่ {week}
+## สรุปสัปดาห์ที่ {week}
 
-### 🎯 Key Takeaways
-3–5 bullets — บทเรียนใหญ่ที่เปลี่ยน mental model ของที่ปรึกษาสัปดาห์นี้
-แต่ละ bullet ต้องอ้างเนื้อหาได้จริง (ระบุวันสั้น ๆ หากใช่)
+## 🔁 ทวนสัปดาห์นี้
 
-### 📚 Knowledge Capture
-สิ่งที่ควรจำและอ้างถึงได้:
-- คำศัพท์ / นิยามใหม่ที่สำคัญ
-- ตัวเลข / data point ที่ใช้อ้างกับลูกค้าได้
-- framework / model ที่ใช้บ่อย
+[5 คำถามจากเนื้อหาสัปดาห์นี้ — ถามให้ตอบจากความจำ ห้ามเฉลยตรงนี้
+แต่ละข้อขึ้นต้นด้วย "- " ลงท้ายด้วย "?" และอ้างวันสั้น ๆ เช่น (จ.)
+ต้องถามจากเนื้อหาที่มีจริงข้างบนเท่านั้น ห้ามแต่งข้อเท็จจริงหรือตัวเลขที่ไม่มีในเนื้อหา]
 
-### 📐 Formulas & Heuristics
-ดึง **เฉพาะที่ปรากฏจริง** ในเนื้อหาสัปดาห์นี้
-**สำคัญ:** ห้ามแต่ง formula หรือ heuristic ที่ไม่มีในเนื้อจริง
-ถ้าสัปดาห์นี้ไม่มี formula ให้พิมพ์ว่า "สัปดาห์นี้ไม่มี formula หลัก — เน้น soft-skill / framework"
-**Formulas:** สูตรพร้อมตัวแปรและ "ใช้เมื่อไร"
-**Heuristics:** กฎหัวแม่มือ / rules of thumb
+## Knowledge Capture
 
-### 🛠️ ใช้กับลูกค้าได้เลย
-3 consultant moves — action เฉพาะที่ทำได้สัปดาห์หน้า ดึงจากเนื้อหาที่อ่าน
+[3–5 bullets — ศัพท์ ตัวเลข หรือ framework ที่ควรจำจากสัปดาห์นี้]
+
+## 🔑 เฉลย
+
+[เฉลย 5 ข้อตามลำดับ ข้อละ 1–2 ประโยค ขึ้นต้นด้วย "- " ต้องตรงกับเนื้อหาจริง]
+
+ห้ามขอให้ผู้อ่านตอบกลับอีเมล ห้ามขอให้กรอกฟอร์ม — อีเมลนี้เป็นทางเดียว
+ผู้อ่านลองตอบในใจแล้วเลื่อนลงมาดูเฉลยเองได้เลย
 """
 
 

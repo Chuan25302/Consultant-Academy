@@ -323,6 +323,10 @@ body{{font-family:'CordiaUPC','Cordia New','Sarabun','Segoe UI',sans-serif;backg
 .bd strong{{color:{color}}}
 .bd blockquote{{margin:14px 0;padding:10px 16px;border-left:3px solid {color};background:rgba({rgba},0.05);color:#555;font-style:italic;font-size:18px}}
 .bd blockquote p{{margin:0}}
+.bd .recall{{background:#FFF8E1;border:1px solid #FFE082;border-radius:8px;padding:14px 18px;margin:18px 0}}
+.bd .recall h3{{margin:0 0 8px;font-size:19px;color:#F57F17}}
+.bd .answers{{background:#FAFAFA;border:1px dashed #BDBDBD;border-radius:8px;padding:12px 18px;margin:18px 0;color:#555}}
+.bd .answers h3{{margin:0 0 6px;font-size:18px;color:#757575}}
 .ftr{{background:#ECEFF1;padding:16px 24px;font-size:16px;color:#546E7A;border-top:1px solid #ddd}}
 .ftr-mission{{margin-top:8px;color:#546E7A;font-style:italic}}
 .preheader{{display:none!important;visibility:hidden;opacity:0;color:transparent;height:0;width:0;font-size:1px;line-height:1px;mso-hide:all;overflow:hidden}}

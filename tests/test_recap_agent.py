@@ -174,31 +174,6 @@ def test_generate_feeds_full_bodies_into_prompt():
         assert body_snippet in sent_prompt, f"missing in prompt: {body_snippet}"
 
 
-def test_prompt_has_four_sections_and_anti_hallucination_guard():
-    """The new prompt must define all four output sections AND tell the
-    LLM not to invent formulas — that guard is the only thing keeping
-    'Formulas & Heuristics' honest."""
-    bodies = {"2026-05-11": "<p>x</p>"}  # minimal — just need one day
-    drive = _make_drive_with_week(bodies)
-    gemini = MagicMock()
-    gemini.generate.return_value = "## stub"
-
-    with patch("src.agents.recap_agent.DesignerAgent.create_recap_email",
-               return_value="<html>recap</html>"), \
-         patch("src.agents.recap_agent.send_daily_email", return_value=True):
-        RecapAgent(gemini, drive, _fake_settings()).generate_and_upload(
-            today=_saturday_2026_05_16(), dry_run=False,
-        )
-
-    sent_prompt = gemini.generate.call_args.args[0]
-    assert "Key Takeaways" in sent_prompt
-    assert "Knowledge Capture" in sent_prompt
-    assert "Formulas & Heuristics" in sent_prompt
-    assert "ใช้กับลูกค้าได้เลย" in sent_prompt
-    # Anti-hallucination guard (free-form match — exact wording may vary):
-    assert "ห้ามแต่ง" in sent_prompt or "อย่าแต่ง" in sent_prompt
-
-
 def test_multiple_emails_per_day_collapse_to_one_header():
     """If a single Mon–Fri date has two [Email] files (re-run / backfill
     case), the prompt should still have ONE day header for that date
@@ -367,3 +342,53 @@ def test_recap_email_send_failure_raises():
         RecapAgent(gemini, drive, _fake_settings()).generate_and_upload(
             today=_saturday_2026_05_16(), dry_run=False,
         )
+
+
+def _recap_prompt() -> str:
+    drive = _make_drive_with_week({"2026-05-11": "<p>x</p>"})
+    gemini = MagicMock()
+    gemini.generate.return_value = "## stub"
+    with patch("src.agents.recap_agent.DesignerAgent.create_recap_email",
+               return_value="<html>r</html>"), \
+         patch("src.agents.recap_agent.send_daily_email", return_value=True):
+        RecapAgent(gemini, drive, _fake_settings()).generate_and_upload(
+            today=_saturday_2026_05_16(), dry_run=False)
+    return gemini.generate.call_args.args[0]
+
+
+def test_recap_prompt_asks_for_retrieval_not_a_summary():
+    prompt = _recap_prompt()
+    assert "🔁 ทวนสัปดาห์นี้" in prompt and "🔑 เฉลย" in prompt
+    assert "5 คำถาม" in prompt
+    assert "Knowledge Capture" in prompt, "anchor must survive (renderer + site)"
+    assert "Key Takeaways" not in prompt
+    # answers live in their own section, after the questions
+    assert prompt.index("🔁 ทวนสัปดาห์นี้") < prompt.index("🔑 เฉลย")
+
+
+def test_recap_prompt_is_one_way_and_keeps_word_budget():
+    prompt = _recap_prompt()
+    # a reply/form request may appear only inside the prohibition sentences
+    stripped = (prompt.replace("ห้ามขอให้ผู้อ่านตอบกลับอีเมล", "")
+                      .replace("ห้ามขอให้กรอกฟอร์ม", ""))
+    assert "ตอบกลับ" not in stripped
+    assert "ฟอร์ม" not in stripped
+    assert "ห้ามขอให้ผู้อ่านตอบกลับอีเมล" in prompt
+    assert "ไม่เกิน 500 คำ" in prompt
+    assert "ทวนของเก่า" not in prompt, "daily wording must stay distinct"
+
+
+def test_recap_markdown_renders_recall_and_answers_boxes_with_css():
+    from src.agents.designer_agent import DesignerAgent
+    md = (
+        "## สรุปสัปดาห์ที่ 20\n\n## 🔁 ทวนสัปดาห์นี้\n\n- Q1 (จ.)?\n\n"
+        "## Knowledge Capture\n\n- term\n\n## 🔑 เฉลย\n\n- A1\n"
+    )
+    html = DesignerAgent.create_recap_email(
+        md, 20, [{"day_th": "จ", "topic": "t", "date_th": "11 พ.ค."}],
+        _saturday_2026_05_16())
+    assert "ทวนสัปดาห์นี้" in html and "เฉลย" in html
+    assert "Knowledge Capture" in html
+    # premailer inlines the recall/answers rules onto the boxes
+    assert "#FFF8E1" in html and "dashed" in html
+    assert html.index("ทวนสัปดาห์นี้") < html.index("Knowledge Capture") < html.index("เฉลย")
