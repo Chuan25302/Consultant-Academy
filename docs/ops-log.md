@@ -11,6 +11,7 @@ manual sends, one-off scripts). One line each: date · what · who is affected
 | 2026-09-11 | PR #5 merged: all agents on `gemini-3.8-flash`, image on `gemini-3.1-flash-image`, Vertex location `global` | All recipients, from the 2026-09-11 run onward | Vertex retires Gemini 2.5 on 2026-10-16 | Revert merge commit `c97a5d6` |
 | 2026-09-11 | Secret `VERTEX_AI_LOCATION` (`us-central1`) deleted by owner; no workflow read it after PR #5 | None | Location is now set in the workflow file | Re-create the secret with `us-central1` (it would still be unused) |
 | 2026-09-11 | Secret `ALERT_EMAIL` created = `tanet.i@pttplc.com`; one `[TEST]` failure alert sent there from a local run | Owner only | Owner asked to be emailed when a run fails | Delete the secret (alerts become a no-op) |
+| 2026-09-29 | Retention is NOT measured: mail is one-way by owner decision (no replies, no pixels, static site stores nothing). A per-run log line (shape/kit/recall/repairs) exists for operations only. Six-pillar dry run made with real Vertex calls (6 articles, no uploads, no email). | Measurement | A8/C2: record the limit instead of inventing a proxy | n/a |
 
 ## Reminders
 
