@@ -1,4 +1,7 @@
-from src.agents.translator_agent import TranslatorAgent
+import pytest
+
+from src.agents.formats import FORMAT_PROFILES, KIT_SPECS
+from src.agents.translator_agent import TranslatorAgent, build_prompt
 
 
 class _CapturingGemini:
@@ -19,3 +22,64 @@ def test_translator_sees_the_whole_fact_checked_draft():
     g = _CapturingGemini()
     TranslatorAgent(g).simplify(verified, None, "Topic", "TECHNICAL")
     assert tail_marker in g.prompt
+
+
+ANCHORS = ["## 💡 ประเด็นวันนี้", "Consultant Move",
+           "Knowledge Capture", "## 📖 ศัพท์น่ารู้"]
+
+
+def _prompt(pillar="TECHNICAL", **kw):
+    args = dict(topic="Chiller COP", pillar=pillar, level=2,
+                industry="Hospitality", expert_content="ข้อเท็จจริงที่ตรวจแล้ว",
+                scene="โรงแรมริมทะเล", recall_items=())
+    args.update(kw)
+    return build_prompt(**args)
+
+
+@pytest.mark.parametrize("pillar", list(FORMAT_PROFILES))
+def test_every_pillar_prompt_keeps_all_four_anchors(pillar):
+    p = _prompt(pillar)
+    for anchor in ANCHORS:
+        assert anchor in p, f"{pillar} lost anchor {anchor}"
+
+
+@pytest.mark.parametrize("pillar", list(FORMAT_PROFILES))
+def test_prompt_carries_that_pillars_sections_and_kit(pillar):
+    p = _prompt(pillar)
+    for title, _ in FORMAT_PROFILES[pillar].sections:
+        assert title in p
+    assert KIT_SPECS[FORMAT_PROFILES[pillar].kit].label in p
+
+
+def test_prompt_states_one_mental_model_and_the_level():
+    p = _prompt(level=3)
+    assert "หลักคิดวันนี้" in p
+    assert "L3" in p
+
+
+def test_prompt_pins_the_assigned_scene():
+    assert "โรงแรมริมทะเล" in _prompt()
+
+
+def test_recall_block_appears_only_when_items_are_supplied():
+    assert "🔁 ทวนของเก่า" not in _prompt()
+    with_items = _prompt(recall_items=[
+        {"title": "Pump curves", "date": "2026-10-10",
+         "tldr": "เลือกปั๊มต้องดูจุดทำงานจริง"}])
+    assert "🔁 ทวนของเก่า" in with_items
+    assert "🔑 เฉลย" in with_items
+    assert "Pump curves" in with_items
+
+
+def test_length_targets_match_the_amended_spec():
+    p = _prompt()
+    assert "600" in p and "700" in p
+
+
+def test_simplify_passes_the_whole_fact_checked_draft():
+    tail = "TAIL-FACT-42 kWh"
+    g = _CapturingGemini()
+    TranslatorAgent(g).simplify(("ข้อเท็จจริง " * 200) + tail, None,
+                                "Topic", "TECHNICAL", level=1,
+                                industry="Food", scene="โรงงานกระดาษ")
+    assert tail in g.prompt

@@ -1,96 +1,112 @@
 import logging
 
+from src.agents.formats import KIT_SPECS, LEVEL_GUIDE, profile_for
 from src.integrations.gemini_client import GeminiClient
 
 logger = logging.getLogger(__name__)
 
-PROMPT = """
+BASE_RULES = """
+กฎ:
+- **ห้ามใส่คำทักทาย** เช่น "สวัสดีทีมงาน Sales..." — เริ่มด้วย "## 💡 ประเด็นวันนี้" ตรง ๆ
+- **ห้ามใส่ประโยคแนะนำตัวเอง** เช่น "ในฐานะ Senior Engineer", "ผมขอแบ่งปัน"
+- **ห้ามใส่ tagline** เกี่ยวกับ "ยกระดับทีม" — Designer ใส่ใน footer แล้ว
+- ภาษาไทยเป็นหลัก ทับศัพท์ English ได้
+- **ห้ามใช้ LaTeX หรือ $...$** — เขียนหน่วยและสูตรเป็นข้อความธรรมดา เช่น tCO2e, kWh/ปี
+- **ใช้ข้อเท็จจริงและตัวเลขจาก "เนื้อหาเทคนิค" ก่อนเสมอ** ถ้าประมาณเองให้ใส่ qualifier
+- ห้ามใส่ชื่อบริษัทจริง
+- **bullet ใช้ "- " เท่านั้น** ห้ามใช้ "*" หรือ "•" และทุก bullet ต้องอยู่บรรทัดของตัวเอง
+- ความยาวเนื้อหาหลัก 600–700 คำ + เครื่องมือ ~150 คำ + ทวนของเก่า ~80 คำ
+  ความยาวต้องมาจากสาระ ไม่ใช่คำฟุ่มเฟือย
+"""
+
+HEAD_TMPL = """
 คุณคือ Consultant Trainer ของ PTT NGR ESP
-เขียน Knowledge Sharing email ในรูปแบบ Case Study เพื่อพัฒนาทีม Sales และ Technical
+เขียน Knowledge Sharing email เพื่อพัฒนาทีม Sales และ Technical
 
 หัวข้อ: {topic}
 Pillar: {pillar}
-เนื้อหาเทคนิค: {expert_content}
-บริบทอุตสาหกรรม: {industry_context}
+ระดับความลึก: {level_guide}
+ฉากที่ต้องใช้ในตัวอย่าง/เคส: **{scene}** (ห้ามเปลี่ยนไปใช้ฉากอื่น)
+เนื้อหาเทคนิคที่ผ่านการตรวจแล้ว: {expert_content}
+บริบทอุตสาหกรรม: {industry}
 
-Output format — Markdown ตรงๆ ห้ามเพิ่มคำนำหน้า ห้ามมีคำทักทาย ห้ามมี tagline:
+Output format — Markdown ตรง ๆ ห้ามมีคำนำหน้า:
 
 ## 💡 ประเด็นวันนี้
 
-[1 ประโยคกระชับ ≤25 คำ — สรุปประเด็นสำคัญที่สุดของหัวข้อนี้ในเชิงกลยุทธ์ที่ทีมเอาไปใช้กับลูกค้าได้ทันที — ห้ามขึ้นต้นด้วย "วันนี้..." หรือ "บทความนี้..."]
+[1 ประโยค ≤25 คำ — ประเด็นเชิงกลยุทธ์ที่เอาไปใช้กับลูกค้าได้ทันที]
 
-## 1. {topic} ในมุมมอง Consultant
+**หลักคิดวันนี้:** [≤2 ประโยค — หลักคิดเดียวที่ผู้อ่านต้องจำให้ได้
+ทุกหัวข้อด้านล่างต้องรับใช้หลักคิดนี้ ถ้าอะไรไม่เกี่ยวให้ตัดทิ้ง]
+"""
 
-[2 ย่อหน้า: (1) "ลูกค้าต้องการอะไรจริงๆ" — ไม่ใช่แค่นิยามทางเทคนิค ใช้ภาษาเชิงกลยุทธ์ (2) ทำไมเรื่องนี้กระทบธุรกิจลูกค้า — ต้นทุน / ความเสี่ยง / กฎระเบียบ พร้อมตัวเลขอ้างอิงจากเนื้อหาเทคนิคอย่างน้อย 1 จุด]
+SECTION_TMPL = """
+## {index}. {title}
 
-## 2. Case Study
+[{intent}]
+"""
 
-**Situation:** [โรงงานประเภทใด ขนาดเท่าไร มีปัญหาอะไร — ตัวเลขเริ่มต้นอย่างน้อย 2 ตัวพร้อมหน่วย เช่น ค่าไฟ X บาท/เดือน, ใช้พลังงาน Y kWh/ปี]
+TAIL_TMPL = """
+## {cmove_index}. Consultant Move
 
-**Complication:** [ปัญหาที่ซ่อนอยู่ที่ลูกค้ามองไม่เห็น — สาเหตุจริงไม่ใช่อาการ]
+[1–2 ประโยคพร้อมใช้กับลูกค้าวันนี้]
 
-> "ผู้จัดการโรงงานบอกเราว่า: '[ประโยคที่ลูกค้าน่าจะพูดในสถานการณ์นี้ — เช่น เครื่องเก่ายังใช้ได้อยู่ ทำไมต้องเปลี่ยน]'"
+## 🧰 {kit_label}
 
-**ตอบลูกค้าอย่างไร:** [1–2 ประโยคที่ที่ปรึกษาใช้ตอบ objection ข้างบน — อ้างตัวเลขหรือความเสี่ยงที่ลูกค้าจับต้องได้]
+{kit_instructions}
 
-**Consultant's Approach:**
+## {kc_index}. Knowledge Capture
 
-- [bullet 1 — ทำอะไร (framework/มาตรฐาน/เทคนิคจากหัวข้อนี้) → ทำไมได้ผล → วัดผลด้วยตัวชี้วัดอะไร]
-- [bullet 2 — รูปแบบเดียวกัน]
-- [bullet 3 — รูปแบบเดียวกัน]
-- [bullet 4 — ถ้ามี]
-
-**Result:** [ผลลัพธ์เป็นตัวเลขเทียบก่อน/หลัง เช่น ลด X% ภายใน Y เดือน คืนทุน Z ปี — พร้อม qualifier]
-
-## 3. Consultant Move
-
-[1–2 ประโยคพร้อมใช้กับลูกค้าวันนี้ — เช่น "ลองถามลูกค้ารายต่อไปว่า ระบบนี้ downtime กี่ชั่วโมงในรอบปีที่ผ่านมา"]
-
-## 4. Takeaways
-
-**ทีม Sales:**
-
-- [actionable insight เชิง business value / ROI / การ pitch — ระบุคำถามหรือตัวเลขที่ใช้ได้จริง]
-- [actionable insight เพิ่มเติม]
-- [actionable insight เพิ่มเติม — ถ้ามี]
-
-**ทีม Technical:**
-
-- [actionable insight เชิงการวิเคราะห์ / วัดผล / การแนะนำ solution — ระบุเครื่องมือ ข้อมูล หรือเกณฑ์ที่ใช้]
-- [actionable insight เพิ่มเติม]
-- [actionable insight เพิ่มเติม — ถ้ามี]
-
-## 5. Knowledge Capture
-
-[1-2 ประโยคสรุปประเด็นหลักที่ที่ปรึกษาควรจำให้ได้ตลอด — เปรียบเสมือน "การ์ดสรุป" ที่ดึงออกมาใช้ได้ทันที]
+[1–2 ประโยคสรุปหลักคิดวันนี้ให้จำได้]
 
 **Key formulas / heuristics:**
 
-- [Formula หรือ rule of thumb 1 — เช่น "TCO = CapEx + Σ(OpEx_n / (1+r)^n) ตลอด N ปี"]
-- [Formula หรือ rule of thumb 2 — เช่น "Payback ที่คุ้ม < ½ ของอายุการใช้งาน"]
-- [Formula หรือ rule of thumb 3 — ถ้ามี]
+- [formula หรือ rule of thumb 1]
+- [formula หรือ rule of thumb 2]
 
 ## 📖 ศัพท์น่ารู้
 
-- [Term1] = [คำแปล / นิยามสั้นๆ]
-- [Term2] = [คำแปล / นิยามสั้นๆ]
-- [Term3] = [คำแปล / นิยามสั้นๆ]
-
-กฎ:
-- **ห้ามใส่คำทักทาย** เช่น "สวัสดีทีมงาน Sales..." — เริ่มต้นด้วย "## 💡 ประเด็นวันนี้" ตรงๆ
-- **ห้ามใส่ประโยคแนะนำตัวเอง** เช่น "ในฐานะ Senior Engineer", "ผมขอแบ่งปัน", "ด้วยประสบการณ์..."
-- **ห้ามใส่ tagline** เกี่ยวกับ "ยกระดับทีม" หรือ "เป้าหมายซีรีส์" — Designer ใส่ใน footer แล้ว
-- ภาษาไทยเป็นหลัก ทับศัพท์ English ได้
-- **ห้ามใช้ LaTeX หรือ $...$** — เขียนหน่วยและสูตรเป็นข้อความธรรมดา เช่น tCO2e, kWh/ปี, TCO = CapEx + OpEx × N (อีเมลแสดง LaTeX ไม่ได้)
-- ตัวเลขในผลลัพธ์ต้องสมเหตุสมผล ใส่ qualifier เช่น "โดยประมาณ" "ในกรณีทั่วไป"
-- ห้ามใส่ชื่อบริษัทจริง ใช้ "โรงงานผลิต X" แทน
-- ความยาวประมาณ 800–1,000 คำ (รวม Knowledge Capture + glossary) — ความยาวต้องมาจากสาระ (ตัวเลข วิธีทำ เหตุผล) ไม่ใช่คำฟุ่มเฟือยหรือการพูดซ้ำ
-- **ใช้ข้อเท็จจริงและตัวเลขจาก "เนื้อหาเทคนิค" ก่อนเสมอ** — ห้ามกุตัวเลขที่ขัดกับเนื้อหาเทคนิค ถ้าต้องประมาณเองให้ใส่ qualifier
-- **Knowledge Capture ต้องมี formula/heuristic อย่างน้อย 2 ข้อ** ที่ดึงออกมาใช้ได้ทันที — ถ้าหัวข้อเป็น softskill/communication ใช้ checklist 2-3 ข้อแทน formula
-- **bullet ใช้ "- " (dash + space) เท่านั้น ห้ามใช้ "*" หรือ "•" เด็ดขาด** — markdown parser ในระบบรองรับเฉพาะ dash
-- ทุก bullet ต้องอยู่บรรทัดของตัวเอง (ขึ้นบรรทัดใหม่ก่อน "- ")
-- **Complication ต้องตามด้วย customer quote** ที่เป็น blockquote (ขึ้นต้นด้วย "> ") เสมอ — ใช้คำพูดที่ลูกค้าจริงน่าจะพูดในสถานการณ์นี้ (anonymous, ไม่อ้างชื่อ) เพื่อให้ทีม Sales/Technical จำได้ว่า objection แบบนี้แก้ยังไง
+- [Term1] = [นิยามสั้น]
+- [Term2] = [นิยามสั้น]
+- [Term3] = [นิยามสั้น]
 """
+
+RECALL_TMPL = """
+## 🔁 ทวนของเก่า
+
+[2 คำถามจากบทความเก่าด้านล่าง — ถามให้ตอบจากความจำ ห้ามเฉลยตรงนี้
+แต่ละคำถามขึ้นต้นด้วย "- " และลงท้ายด้วย "?"]
+
+บทความเก่าที่ให้ใช้ตั้งคำถาม:
+{recall_sources}
+
+## 🔑 เฉลย
+
+[เฉลย 2 ข้อตามลำดับ ข้อละ 1–2 ประโยค ขึ้นต้นด้วย "- "]
+"""
+
+
+def build_prompt(*, topic: str, pillar: str, level: int, industry: str,
+                 expert_content: str, scene: str, recall_items=()) -> str:
+    profile = profile_for(pillar)
+    kit = KIT_SPECS[profile.kit]
+    parts = [HEAD_TMPL.format(
+        topic=topic, pillar=pillar,
+        level_guide=LEVEL_GUIDE.get(int(level or 1), LEVEL_GUIDE[1]),
+        scene=scene, expert_content=expert_content[:12000],
+        industry=industry or "ทั่วไป")]
+    for i, (title, intent) in enumerate(profile.sections, start=1):
+        parts.append(SECTION_TMPL.format(index=i, title=title, intent=intent))
+    n = len(profile.sections)
+    parts.append(TAIL_TMPL.format(cmove_index=n + 1, kc_index=n + 2,
+                                  kit_label=kit.label,
+                                  kit_instructions=kit.instructions))
+    if recall_items:
+        sources = "\n".join(
+            f'- {it["title"]} ({it["date"]}): {it["tldr"]}' for it in recall_items)
+        parts.append(RECALL_TMPL.format(recall_sources=sources))
+    parts.append(BASE_RULES)
+    return "\n".join(parts)
 
 
 class TranslatorAgent:
@@ -98,15 +114,13 @@ class TranslatorAgent:
         self.gemini = gemini
 
     def simplify(self, expert_content: str, industry_context: str,
-                 topic: str, pillar: str) -> str:
-        logger.info("✍️ Translator: simplifying to Thai")
+                 topic: str, pillar: str, *, level: int = 1,
+                 industry: str = "ทั่วไป", scene: str = "",
+                 recall_items=()) -> str:
+        logger.info(f"✍️ Translator: {pillar} · L{level} · ฉาก {scene or '-'}")
         return self.gemini.generate(
-            PROMPT.format(
-                topic=topic, pillar=pillar,
-                # Whole fact-checked draft: it is the grounded source for the
-                # Case Study numbers. Cap only as a runaway-input guard.
-                expert_content=expert_content[:12000],
-                industry_context=industry_context[:400] if industry_context else "ไม่มี"
-            ),
+            build_prompt(topic=topic, pillar=pillar, level=level,
+                         industry=industry, expert_content=expert_content,
+                         scene=scene, recall_items=recall_items),
             agent_tag="translator",
         )
