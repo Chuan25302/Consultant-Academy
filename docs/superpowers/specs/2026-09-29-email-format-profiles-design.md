@@ -383,6 +383,14 @@ model), A3 (spaced recall), A6 (level-appropriate depth) and A7 (sourced
 numbers) are the levers, and the six-pillar dry-run before merge is
 where a human judges whether the content is actually good.
 
+> **Reader behaviour, owner-reported 2026-09-29:** the team reads the
+> email when they have a free moment, and sometimes follows the link to
+> read the article on the KM site. So there are two surfaces with
+> different jobs — the email is skimmed, the site is where someone who
+> wants depth goes. This spec does not change the split, but any future
+> "make it deeper" work should add depth on the site rather than
+> lengthening the email.
+
 **A9 — supersedes "Design §5".** No `<details>`, no JS. The recall box
 and the answer box are ordinary table-based boxes rendered through
 `premailer`, and a test asserts both survive inlining.
