@@ -50,6 +50,10 @@ KCAPTURE_RE = re.compile(
     r'<h2>(?:\d+\.\s*)?Knowledge Capture</h2>(.*?)(?=<h2|$)',
     flags=re.DOTALL | re.IGNORECASE,
 )
+# Kit / recall / answers boxes (translator emits these headings by emoji).
+KIT_RE = re.compile(r'<h2>🧰\s*(.*?)</h2>(.*?)(?=<h2|$)', re.DOTALL)
+RECALL_RE = re.compile(r'<h2>🔁\s*(.*?)</h2>(.*?)(?=<h2|$)', re.DOTALL)
+ANSWERS_RE = re.compile(r'<h2>🔑\s*(.*?)</h2>(.*?)(?=<h2|$)', re.DOTALL)
 # Inline format (legacy): "📖 ศัพท์น่ารู้: A = ... | B = ..."
 GLOSSARY_INLINE_RE = re.compile(
     r'<p>(📖\s*ศัพท์น่ารู้:.+?)</p>',
@@ -150,6 +154,12 @@ body{{font-family:'CordiaUPC','Cordia New','Sarabun','Segoe UI',sans-serif;backg
 .kcapture{{background:#FFF8E1;border:1px solid #FFD54F;padding:16px;margin:20px 0;border-radius:6px}}
 .kcapture h3{{color:#F57F17;margin:0 0 8px;font-size:19px}}
 .kcapture strong{{color:#E65100}}
+.bd .kit{{background:#F1F8E9;border:1px solid #C5E1A5;border-radius:8px;padding:14px 18px;margin:18px 0}}
+.bd .kit h3{{margin:0 0 8px;font-size:18px;color:#33691E}}
+.bd .recall{{background:#FFF8E1;border:1px solid #FFE082;border-radius:8px;padding:14px 18px;margin:18px 0}}
+.bd .recall h3{{margin:0 0 8px;font-size:18px;color:#F57F17}}
+.bd .answers{{background:#FAFAFA;border:1px dashed #BDBDBD;border-radius:8px;padding:12px 18px;margin:18px 0;color:#555;font-size:16px}}
+.bd .answers h3{{margin:0 0 6px;font-size:16px;color:#757575}}
 .bd blockquote{{margin:14px 0;padding:10px 16px;border-left:3px solid {color};background:rgba({rgba},0.05);color:#555;font-style:italic;font-size:18px}}
 .bd blockquote p{{margin:0}}
 .glossary{{background:#F5F5F5;padding:16px 20px;margin-top:24px;border-radius:6px;font-size:18px;color:#555;border-top:3px solid {color}}}
@@ -241,6 +251,12 @@ body{{font-family:'CordiaUPC','Cordia New','Sarabun','Segoe UI',sans-serif;backg
             r'<div class="kcapture"><h3>🧠 Knowledge Capture</h3>\1</div>',
             html,
         )
+        html = KIT_RE.sub(
+            r'<div class="kit"><h3>🧰 \1</h3>\2</div>', html)
+        html = RECALL_RE.sub(
+            r'<div class="recall"><h3>🔁 \1</h3>\2</div>', html)
+        html = ANSWERS_RE.sub(
+            r'<div class="answers"><h3>🔑 \1</h3>\2</div>', html)
         html = GLOSSARY_LIST_RE.sub(
             r'<div class="glossary"><strong>📖 ศัพท์น่ารู้</strong>'
             r'<ul class="glossary-list">\1</ul></div>',

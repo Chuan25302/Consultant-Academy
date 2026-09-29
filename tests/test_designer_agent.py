@@ -167,3 +167,47 @@ def test_km_banner_appears_above_body_when_env_set(monkeypatch):
     banner_idx = html.find('class="km-banner"')
     body_idx   = html.find('class="bd"')
     assert banner_idx > 0 and body_idx > 0 and banner_idx < body_idx
+
+
+MD_WITH_BOXES = """## 💡 ประเด็นวันนี้
+สรุป
+
+## 🧰 Checklist เดินหน้างาน
+
+- ☐ วัดอุณหภูมิน้ำเย็นออก ควรอยู่ 7 °C
+
+## 🔁 ทวนของเก่า
+
+- เมื่อวาน COP ต่ำแปลว่าอะไร?
+
+## 🔑 เฉลย
+
+- แปลว่าเครื่องกินไฟเกินต่อความเย็นที่ได้
+"""
+
+
+def test_kit_section_becomes_its_own_box():
+    html = DesignerAgent._md_to_html(MD_WITH_BOXES)
+    assert 'class="kit"' in html
+    assert "Checklist เดินหน้างาน" in html
+
+
+def test_recall_and_answers_become_separate_boxes():
+    html = DesignerAgent._md_to_html(MD_WITH_BOXES)
+    assert 'class="recall"' in html
+    assert 'class="answers"' in html
+    assert html.index('class="recall"') < html.index('class="answers"'), (
+        "answers must come after the questions")
+
+
+def test_checkbox_character_survives_rendering():
+    assert "☐" in DesignerAgent._md_to_html(MD_WITH_BOXES)
+
+
+def test_boxes_survive_premailer_inlining():
+    html = DesignerAgent.create_email(
+        MD_WITH_BOXES,
+        {"topic": "T", "pillar": "TECHNICAL", "date": datetime(2026, 10, 1)})
+    assert "☐" in html
+    assert "เฉลย" in html
+    assert "<details" not in html, "spec A9 — no <details>, it is unreliable in Gmail"
