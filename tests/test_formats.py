@@ -79,3 +79,19 @@ def test_three_consecutive_days_give_three_different_scenes():
 def test_recent_covering_the_whole_pool_still_returns_a_scene():
     # Never raise: a small pool must degrade, not crash the run.
     assert scene_for(date(2026, 10, 4), "Food", POOL, recent=POOL) in POOL
+
+
+def test_recent_forces_a_different_scene():
+    natural = scene_for(date(2026, 10, 1), "Food", POOL)
+    assert scene_for(date(2026, 10, 1), "Food", POOL, recent=[natural]) != natural
+
+
+def test_full_recent_degrades_to_the_natural_pick():
+    natural = scene_for(date(2026, 10, 4), "Food", POOL)
+    assert scene_for(date(2026, 10, 4), "Food", POOL, recent=POOL) == natural
+
+
+def test_determinism_pinned_to_sha256_not_builtin_hash():
+    # Golden value: if someone swaps hashlib.sha256 for hash(),
+    # the salted builtin would fail this test across runs.
+    assert scene_for(date(2026, 10, 1), "Food", POOL) == "โรงงานกระดาษ"

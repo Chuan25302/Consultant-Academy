@@ -1,8 +1,9 @@
 """
 Per-pillar email format profiles (spec 2026-09-29, A2/A6).
 
-Data only — no logic lives here, so editing a profile cannot break prompt
-assembly. TranslatorAgent reads these; EditorAgent enforces the result.
+Data plus pure selection helpers (no I/O, no prompt assembly logic).
+Editing data or helper functions cannot break prompt assembly.
+TranslatorAgent reads data and calls helpers; EditorAgent enforces the result.
 """
 import hashlib
 from collections.abc import Sequence
