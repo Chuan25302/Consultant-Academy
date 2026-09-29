@@ -162,7 +162,8 @@ class IndexBuilder:
         return archives
 
     def update_summary(self, docx_id: str, tldr: str,
-                       html_id: str | None = None) -> str | None:
+                       html_id: str | None = None, *,
+                       scene: str = "", date: str = "") -> str | None:
         """Append/update an entry in __summaries.json. Called by main.py
         after each daily upload so future runs can show this article in
         their related section with a real summary + browser link."""
@@ -173,6 +174,10 @@ class IndexBuilder:
             "tldr": tldr or "",
             "html_id": html_id or "",
         }
+        if scene:
+            summaries[docx_id]["scene"] = scene
+        if date:
+            summaries[docx_id]["date"] = date
         self._summaries_cache = summaries  # keep in-memory copy fresh
         return self.drive.update_or_create(
             filename=SUMMARIES_FILENAME,
@@ -180,6 +185,17 @@ class IndexBuilder:
             folder_id=self.settings.FOLDER_KNOWLEDGE_BASE,
             mime_type="application/json",
         )
+
+    def recent_scenes(self, limit: int = 2, exclude_date: str = "") -> list[dict]:
+        """Most recent stored scenes, newest first (spec 4 no-repeat rule).
+        `exclude_date` skips the date being generated so a re-run of that
+        day sees the same history as the first run."""
+        summaries = self._load_summaries()
+        rows = [v for v in summaries.values()
+                if isinstance(v, dict) and v.get("scene")
+                and not (exclude_date and v.get("date") == exclude_date)]
+        rows.sort(key=lambda r: r.get("date", ""), reverse=True)
+        return rows[:limit]
 
     def collect_articles(self) -> list[dict]:
         """Walk KB and parse every article filename we recognize.

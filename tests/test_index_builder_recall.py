@@ -155,3 +155,44 @@ def test_malformed_article_skipped_good_articles_kept():
     picked = _builder(articles=articles, summaries=summaries).recall_candidates(TODAY, cluster="Test", limit=5)
     # Both bad articles are skipped; three good articles should be returned (newest first)
     assert [p["title"] for p in picked] == ["Good article 1", "Good article 2", "Good article 3"]
+
+
+# --- scene history (Task 5) -------------------------------------------------
+
+def _scene_builder(summaries):
+    b = IndexBuilder(MagicMock(), MagicMock())
+    b._load_summaries = MagicMock(return_value=summaries)
+    return b
+
+
+SCENES = {
+    "a": {"scene": "S-old", "date": "2026-05-01"},
+    "b": {"scene": "S-mid", "date": "2026-05-02"},
+    "c": {"scene": "S-today", "date": "2026-05-04"},
+    "d": {"tldr": "no scene", "date": "2026-05-03"},
+}
+
+
+def test_recent_scenes_newest_first_limited_and_skips_sceneless():
+    rows = _scene_builder(SCENES).recent_scenes(limit=2)
+    assert [r["scene"] for r in rows] == ["S-today", "S-mid"]
+
+
+def test_recent_scenes_excludes_the_date_being_generated():
+    rows = _scene_builder(SCENES).recent_scenes(limit=2, exclude_date="2026-05-04")
+    assert [r["scene"] for r in rows] == ["S-mid", "S-old"]
+
+
+def test_update_summary_stores_scene_and_date():
+    b = IndexBuilder(MagicMock(), MagicMock())
+    b._load_summaries = MagicMock(return_value={})
+    b.update_summary("doc1", "tl", "h1", scene="S", date="2026-05-04")
+    assert b._summaries_cache["doc1"] == {
+        "tldr": "tl", "html_id": "h1", "scene": "S", "date": "2026-05-04"}
+
+
+def test_update_summary_without_scene_keeps_old_record_shape():
+    b = IndexBuilder(MagicMock(), MagicMock())
+    b._load_summaries = MagicMock(return_value={})
+    b.update_summary("doc1", "tl", "h1")
+    assert b._summaries_cache["doc1"] == {"tldr": "tl", "html_id": "h1"}
