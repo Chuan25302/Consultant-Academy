@@ -104,6 +104,12 @@ def test_calculator_pillars_receive_the_reference_table():
     assert REFERENCE_FIGURES.strip() in _prompt("FRAMEWORK")
 
 
-def test_non_calculator_pillars_do_not_carry_it():
-    assert "ค่าไฟเฉลี่ยภาคอุตสาหกรรม" not in _prompt("SOFTSKILL")
-    assert REFERENCE_FIGURES.strip() not in _prompt("SOFTSKILL")
+@pytest.mark.parametrize("pillar", ["TECHNICAL", "INDUSTRY", "COMPLIANCE", "SOFTSKILL"])
+def test_non_calculator_pillars_do_not_carry_it(pillar):
+    assert "ค่าไฟเฉลี่ยภาคอุตสาหกรรม" not in _prompt(pillar)
+    assert REFERENCE_FIGURES.strip() not in _prompt(pillar)
+
+
+def test_reference_block_is_labelled_input_before_output_skeleton():
+    p = _prompt("SUSTAINABILITY")
+    assert p.index("input เท่านั้น") < p.index(REFERENCE_FIGURES.strip()) < p.index("## 🧰")

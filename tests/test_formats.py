@@ -1,4 +1,6 @@
+import re
 from datetime import date
+from pathlib import Path
 
 import pytest
 
@@ -111,5 +113,19 @@ def _figure_lines():
 def test_reference_figures_carry_sources():
     lines = _figure_lines()
     assert len(lines) >= 4
-    assert all("ที่มา" in ln for ln in lines), "every figure needs provenance (A7)"
+    assert all(re.search(r"ที่มา:\s*\S", ln) for ln in lines), \
+        "every figure needs a non-empty source after ที่มา: (A7)"
+
+
+def test_reference_doc_matches_constant():
+    doc = Path(__file__).resolve().parent.parent / "docs/references/th-energy-reference.md"
+    doc_lines = [ln.strip() for ln in doc.read_text(encoding="utf-8").splitlines()
+                 if ln.strip().startswith("- ")]
+    assert doc_lines == [ln.strip() for ln in _figure_lines()], \
+        "docs/references/th-energy-reference.md and REFERENCE_FIGURES drifted"
+
+
+def test_calculator_instructions_resolve_the_source_rule():
+    ins = KIT_SPECS["calculator"].instructions
+    assert "ประมาณการ" in ins and "เนื้อหาเทคนิค" in ins
 

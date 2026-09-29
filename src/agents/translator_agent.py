@@ -19,6 +19,10 @@ BASE_RULES = """
   ความยาวต้องมาจากสาระ ไม่ใช่คำฟุ่มเฟือย
 """
 
+REFERENCE_LABEL = (
+    "\nข้อมูลอ้างอิง (input เท่านั้น) — ห้ามคัดลอกทั้งตารางลงในอีเมล "
+    "ใช้เฉพาะค่าที่เกี่ยวข้องกับหัวข้อ")
+
 HEAD_TMPL = """
 คุณคือ Consultant Trainer ของ PTT NGR ESP
 เขียน Knowledge Sharing email เพื่อพัฒนาทีม Sales และ Technical
@@ -27,7 +31,7 @@ HEAD_TMPL = """
 Pillar: {pillar}
 ระดับความลึก: {level_guide}
 {scene_line}เนื้อหาเทคนิคที่ผ่านการตรวจแล้ว: {expert_content}
-บริบทอุตสาหกรรม: {industry}
+{reference_block}บริบทอุตสาหกรรม: {industry}
 
 Output format — Markdown ตรง ๆ ห้ามมีคำนำหน้า:
 
@@ -89,7 +93,9 @@ def build_prompt(*, topic: str, pillar: str, level: int, industry: str,
                  expert_content: str, scene: str, recall_items=()) -> str:
     profile = profile_for(pillar)
     kit = KIT_SPECS[profile.kit]
-    parts = [HEAD_TMPL.format(
+    reference_block = (REFERENCE_LABEL + REFERENCE_FIGURES
+                       if profile.kit == "calculator" else "")
+    parts = [HEAD_TMPL.format(reference_block=reference_block,
         topic=topic, pillar=pillar,
         level_guide=LEVEL_GUIDE.get(int(level or 1), LEVEL_GUIDE[1]),
         scene_line=(f"ฉากที่ต้องใช้ในตัวอย่าง/เคส: **{scene}** "
@@ -102,8 +108,6 @@ def build_prompt(*, topic: str, pillar: str, level: int, industry: str,
     parts.append(TAIL_TMPL.format(cmove_index=n + 1, kc_index=n + 2,
                                   kit_label=kit.label,
                                   kit_instructions=kit.instructions))
-    if profile.kit == "calculator":
-        parts.append(REFERENCE_FIGURES)
     if recall_items:
         sources = "\n".join(
             f'- {it["title"]} ({it["date"]}): {it["tldr"]}' for it in recall_items)
