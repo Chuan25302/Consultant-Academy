@@ -51,9 +51,12 @@ KCAPTURE_RE = re.compile(
     flags=re.DOTALL | re.IGNORECASE,
 )
 # Kit / recall / answers boxes (translator emits these headings by emoji).
-KIT_RE = re.compile(r'<h2>🧰\s*(.*?)</h2>(.*?)(?=<h2|$)', re.DOTALL)
-RECALL_RE = re.compile(r'<h2>🔁\s*(.*?)</h2>(.*?)(?=<h2|$)', re.DOTALL)
-ANSWERS_RE = re.compile(r'<h2>🔑\s*(.*?)</h2>(.*?)(?=<h2|$)', re.DOTALL)
+# These run AFTER CMOVE_RE/KCAPTURE_RE, whose <h2> is already a <div>, so the
+# lookahead must stop at those divs too or the kit swallows Knowledge Capture.
+_END = r'(?=<h2|<div class="(?:cmove|kcapture)"|$)'
+KIT_RE = re.compile(r'<h2>🧰\s*(.*?)</h2>(.*?)' + _END, re.DOTALL)
+RECALL_RE = re.compile(r'<h2>🔁\s*(.*?)</h2>(.*?)' + _END, re.DOTALL)
+ANSWERS_RE = re.compile(r'<h2>🔑\s*(.*?)</h2>(.*?)' + _END, re.DOTALL)
 # Inline format (legacy): "📖 ศัพท์น่ารู้: A = ... | B = ..."
 GLOSSARY_INLINE_RE = re.compile(
     r'<p>(📖\s*ศัพท์น่ารู้:.+?)</p>',

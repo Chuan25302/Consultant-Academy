@@ -210,4 +210,60 @@ def test_boxes_survive_premailer_inlining():
         {"topic": "T", "pillar": "TECHNICAL", "date": datetime(2026, 10, 1)})
     assert "☐" in html
     assert "เฉลย" in html
+    for cls in ("kit", "recall", "answers"):
+        assert f'class="{cls}"' in html, cls
+    assert re.search(r'<div class="(?:kit|recall|answers)"[^>]*style="', html), \
+        "premailer should inline a style= onto at least one new box"
     assert "<details" not in html, "spec A9 — no <details>, it is unreliable in Gmail"
+
+
+MD_REAL_ORDER = """## 💡 ประเด็นวันนี้
+สรุป
+
+## 1. หัวข้อแรก
+เนื้อหา
+
+## 2. หัวข้อสอง
+เนื้อหา
+
+## 3. Consultant Move
+ทำแบบนี้
+
+## 🧰 Checklist เดินหน้างาน
+
+- ☐ วัดอุณหภูมิน้ำเย็นออก
+
+## 4. Knowledge Capture
+จำไว้
+
+## 📖 ศัพท์น่ารู้
+
+- COP = สัมประสิทธิ์สมรรถนะ
+
+## 🔁 ทวนของเก่า
+
+- เมื่อวาน COP ต่ำแปลว่าอะไร?
+
+## 🔑 เฉลย
+
+- เครื่องกินไฟเกิน
+"""
+
+
+def _first_box_body(html, cls):
+    """Text of a box from its opening tag to the FIRST closing </div>."""
+    return html.split(f'class="{cls}"', 1)[1].split("</div>", 1)[0]
+
+
+def test_boxes_are_not_nested_in_real_translator_order():
+    html = DesignerAgent._md_to_html(MD_REAL_ORDER)
+    assert 'class="kcapture"' not in _first_box_body(html, "kit")
+    assert 'class="glossary"' not in _first_box_body(html, "kit")
+    assert 'class="answers"' not in _first_box_body(html, "recall")
+    assert 'class="cmove"' not in _first_box_body(html, "kcapture")
+
+
+def test_existing_boxes_still_render_with_new_ones():
+    html = DesignerAgent._md_to_html(MD_REAL_ORDER)
+    for cls in ("cmove", "kit", "kcapture", "glossary", "recall", "answers"):
+        assert f'class="{cls}"' in html, cls
