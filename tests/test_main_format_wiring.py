@@ -127,3 +127,15 @@ def test_non_dry_run_persists_scene_and_date_in_the_summary(deps):
     scene = main_mod.TranslatorAgent.return_value.simplify.call_args.kwargs["scene"]
     call = main_mod.IndexBuilder.return_value.update_summary.call_args
     assert call.kwargs == {"scene": scene, "date": "2026-05-04"}
+
+
+@pytest.mark.parametrize("repairs", [0, 1])
+def test_run_summary_line_reports_shape_kit_recall_repairs(deps, caplog, repairs):
+    import logging
+    main_mod.EditorAgent.return_value.last_repair_count = repairs
+    main_mod.IndexBuilder.return_value.recall_candidates.return_value = [
+        {"title": "Pump curves", "date": "2026-04-28", "tldr": "x"}]
+    with caplog.at_level(logging.INFO):
+        _run()
+    lines = [r.getMessage() for r in caplog.records if "📐" in r.getMessage()]
+    assert lines == [f"📐 shape=TECHNICAL kit=checklist recall=1 repairs={repairs}"]

@@ -75,20 +75,22 @@ def main(outdir: str) -> int:
         except Exception as e:  # noqa: BLE001 - a failed pillar is a result
             failures[date] = f"{type(e).__name__}: {e}"
 
-    print(f"\n{'date':10s} {'pillar':15s} {'words':>6s} {'kit':>4s} "
+    print(f"\n{'date':10s} {'pillar':15s} {'words':>6s} {'thai':>6s} {'kit':>4s} "
           f"{'recall':>6s} {'box':>4s} {'bad':>4s}")
     for date, pillar in plan:
         html = captured.get(date)
         if html is None:
             print(f"{date:10s} {pillar:15s} FAILED {failures.get(date, 'no html captured')}")
             continue
-        text = re.sub(r"<[^>]+>", " ", html)
+        body = re.sub(r"<(style|script)[^>]*>.*?</>", " ", html, flags=re.S)
+        text = re.sub(r"<[^>]+>", " ", body)
+        thai = len(re.findall(r"[฀-๿]", text))
         (out / f"{date}_{pillar}.html").write_text(html, encoding="utf-8")
         has_kit = 'class="kit"' in html
         has_recall = 'class="recall"' in html
         boxes = text.count("☐")
         bad = "[Error" in text or "$\\" in text
-        print(f"{date:10s} {pillar:15s} {len(text.split()):6d} "
+        print(f"{date:10s} {pillar:15s} {len(text.split()):6d} {thai:6d} "
               f"{'yes' if has_kit else 'NO':>4s} "
               f"{'yes' if has_recall else 'no':>6s} {boxes:4d} "
               f"{'BAD' if bad else 'ok':>4s}")

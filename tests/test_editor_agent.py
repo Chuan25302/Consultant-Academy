@@ -405,3 +405,20 @@ def test_review_passes_recall_to_check():
     gemini.generate.return_value = "FIXED"
     EditorAgent(gemini).review(CHECKLIST_OK, kit="checklist", recall=True)
     assert "🔁" in gemini.generate.call_args.args[0]
+
+
+def test_last_repair_count_is_zero_when_content_passes():
+    editor = EditorAgent(MagicMock())
+    assert editor.last_repair_count == 0
+    editor.review(GOOD)
+    assert editor.last_repair_count == 0
+
+
+def test_last_repair_count_is_one_after_a_repair_and_resets():
+    gemini = MagicMock()
+    gemini.generate.return_value = "FIXED CONTENT"
+    editor = EditorAgent(gemini)
+    editor.review("ไม่มีอะไรเลย")
+    assert editor.last_repair_count == 1
+    editor.review(GOOD)
+    assert editor.last_repair_count == 0

@@ -208,7 +208,8 @@ def main(date: str = None, dry_run: bool = False,
         industry=topic.get("industry", "ทั่วไป"),
         scene=scene, recall_items=recall_items))
 
-    edited = EditorAgent(gemini).review(
+    editor = EditorAgent(gemini)
+    edited = editor.review(
         translated, kit=profile.kit, scene=scene, recall=bool(recall_items))
 
     final_md = require_ok("editor", edited)
@@ -321,6 +322,8 @@ def main(date: str = None, dry_run: bool = False,
 
     daily_cost = cost.daily_total()
     logger.info(f"💰 Daily cost: ${daily_cost:.4f}")
+    logger.info(f"📐 shape={topic['pillar']} kit={profile.kit} "
+                f"recall={len(recall_items)} repairs={editor.last_repair_count}")
     logger.info("✅ DONE")
     sys.stdout.flush()
 

@@ -107,6 +107,7 @@ PROMPT = """
 class EditorAgent:
     def __init__(self, gemini: GeminiClient):
         self.gemini = gemini
+        self.last_repair_count = 0  # 1 when review() fired its repair call
 
     @staticmethod
     def strip_latex(md: str) -> str:
@@ -114,6 +115,7 @@ class EditorAgent:
 
     def review(self, md: str, *, kit: str = "", scene: str = "",
                recall: bool = False) -> str:
+        self.last_repair_count = 0
         md = self.strip_latex(md)
         issues = self.check(md, kit=kit, scene=scene, recall=recall)
         if not issues:
@@ -121,6 +123,7 @@ class EditorAgent:
             return md
 
         logger.info(f"✏️  Editor: regenerating to fix {len(issues)} issue(s): {issues}")
+        self.last_repair_count = 1
         bullet_issues = "\n".join(f"- {i}" for i in issues)
         improved = self.gemini.generate(
             PROMPT.format(issues=bullet_issues, content=md),
