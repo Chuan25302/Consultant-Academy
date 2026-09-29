@@ -26,6 +26,15 @@ from src.utils.calendar_parser import CalendarParser  # noqa: E402
 WANTED = ["TECHNICAL", "INDUSTRY", "FRAMEWORK",
           "SOFTSKILL", "COMPLIANCE", "SUSTAINABILITY"]
 DATE_RE = re.compile(r"\d{4}-\d{2}-\d{2}")
+NON_VISIBLE_RE = re.compile(r"<(style|script)\b[^>]*>.*?</\1>", re.S | re.I)
+THAI_RE = re.compile(r"[฀-๿]")
+
+
+def visible_text(html: str) -> tuple[str, int]:
+    """Text a reader sees (no tags, no <style>/<script> bodies) and its Thai
+    character count. Thai has no spaces, so word counts alone understate it."""
+    text = re.sub(r"<[^>]+>", " ", NON_VISIBLE_RE.sub(" ", html))
+    return text, len(THAI_RE.findall(text))
 
 
 def pick_dates(raw: str, today: datetime) -> list[tuple[str, str]]:
@@ -82,9 +91,7 @@ def main(outdir: str) -> int:
         if html is None:
             print(f"{date:10s} {pillar:15s} FAILED {failures.get(date, 'no html captured')}")
             continue
-        body = re.sub(r"<(style|script)[^>]*>.*?</>", " ", html, flags=re.S)
-        text = re.sub(r"<[^>]+>", " ", body)
-        thai = len(re.findall(r"[฀-๿]", text))
+        text, thai = visible_text(html)
         (out / f"{date}_{pillar}.html").write_text(html, encoding="utf-8")
         has_kit = 'class="kit"' in html
         has_recall = 'class="recall"' in html
