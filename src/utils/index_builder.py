@@ -251,6 +251,7 @@ class IndexBuilder:
             summaries = self._load_summaries()
 
             picks: list[dict] = []
+            skipped = 0
             for a in articles:
                 try:
                     published = date.fromisoformat(a["date"])
@@ -262,8 +263,13 @@ class IndexBuilder:
                         continue
                     picks.append({"title": a["title"], "date": a["date"], "tldr": tldr,
                                   "cluster": a.get("cluster", "General")})
-                except Exception:  # noqa: BLE001 — skip malformed article, keep others
+                except Exception:  # noqa: BLE001 — one bad row must not cost the block
+                    skipped += 1
                     continue
+
+            if skipped:
+                logger.warning(
+                    f"recall_candidates skipped {skipped}/{len(articles)} malformed article(s)")
 
             picks.sort(key=lambda p: (p["cluster"] != cluster, -_ordinal(p["date"])))
             return picks[:limit]

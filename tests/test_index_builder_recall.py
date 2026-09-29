@@ -136,18 +136,22 @@ def test_invalid_date_string_skipped():
 
 
 def test_malformed_article_skipped_good_articles_kept():
-    """One malformed article (None tldr, missing title) should be skipped,
-    leaving good articles intact (blast radius: one bad row, not whole block)."""
+    """Multiple malformed articles should be skipped, leaving good articles
+    intact (blast radius: bad row, not whole block). Multiple skips are logged."""
     articles = [
         {"id": "good1", "title": "Good article 1", "date": "2026-10-08", "cluster": "Test", "level": 1},
-        {"id": "bad", "title": "Bad article", "date": "2026-10-07", "cluster": "Test", "level": 1},
+        {"id": "bad1", "title": "Bad article 1", "date": "2026-10-07", "cluster": "Test", "level": 1},
         {"id": "good2", "title": "Good article 2", "date": "2026-10-06", "cluster": "Test", "level": 1},
+        {"id": "bad2", "date": "2026-10-05", "cluster": "Test", "level": 1},  # Missing title → KeyError
+        {"id": "good3", "title": "Good article 3", "date": "2026-10-04", "cluster": "Test", "level": 1},
     ]
     summaries = {
         "good1": {"tldr": "First good article"},
-        "bad": {"tldr": None},  # None tldr will raise AttributeError on .strip()
+        "bad1": {"tldr": None},  # None tldr will raise AttributeError on .strip()
         "good2": {"tldr": "Second good article"},
+        # bad2 has no entry → summaries.get returns {}, which is fine
+        "good3": {"tldr": "Third good article"},
     }
-    picked = _builder(articles=articles, summaries=summaries).recall_candidates(TODAY, cluster="Test", limit=3)
-    # Bad article is skipped; both good articles should be returned (newest first)
-    assert [p["title"] for p in picked] == ["Good article 1", "Good article 2"]
+    picked = _builder(articles=articles, summaries=summaries).recall_candidates(TODAY, cluster="Test", limit=5)
+    # Both bad articles are skipped; three good articles should be returned (newest first)
+    assert [p["title"] for p in picked] == ["Good article 1", "Good article 2", "Good article 3"]
