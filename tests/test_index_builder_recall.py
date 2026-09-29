@@ -1,3 +1,4 @@
+import json
 from datetime import date
 from unittest.mock import MagicMock
 
@@ -241,3 +242,35 @@ def test_update_summary_with_absent_file_still_writes_first_record():
     b = IndexBuilder(drive, MagicMock())
     b.update_summary("doc1", "tl", "h1")
     drive.update_or_create.assert_called_once()
+
+
+def test_a_listing_miss_does_not_wipe_stored_summaries_at_write_time():
+    """`drive._list` succeeding with zero matches is not proof the file is
+    absent (eventual consistency / permission blip / renamed parent). The
+    branch widened the window: recent_scenes() loads summaries ~8 minutes
+    before update_summary writes. The 'absent' verdict must therefore not be
+    cached — the write re-queries and merges."""
+    drive = MagicMock()
+    drive._list.side_effect = [{"files": []}, {"files": [{"id": "sum1"}]}]
+    drive.download_file.return_value = '{"old": {"tldr": "kept", "date": "2026-05-01"}}'
+    b = IndexBuilder(drive, MagicMock())
+
+    assert b.recent_scenes() == []          # first listing missed
+    b.update_summary("doc1", "tl", "h1", scene="S", date="2026-05-04")
+
+    written = json.loads(drive.update_or_create.call_args.kwargs["content"])
+    assert written["old"] == {"tldr": "kept", "date": "2026-05-01"}
+    assert written["doc1"]["tldr"] == "tl"
+
+
+def test_a_truly_absent_summaries_file_is_still_created():
+    """The genuine first-ever write must keep working."""
+    drive = MagicMock()
+    drive._list.return_value = {"files": []}
+    b = IndexBuilder(drive, MagicMock())
+
+    b.update_summary("doc1", "tl", "h1")
+
+    written = json.loads(drive.update_or_create.call_args.kwargs["content"])
+    assert written == {"doc1": {"tldr": "tl", "html_id": "h1"}}
+    drive.download_file.assert_not_called()

@@ -410,3 +410,27 @@ def test_recap_markdown_renders_recall_kcapture_answers_as_sibling_boxes():
     assert html.index("</div>", kc) < ans
     # premailer inlined the recall/answers rules
     assert "#FFF8E1" in html and "dashed" in html
+
+
+def test_strip_html_removes_the_daily_recall_and_answer_boxes():
+    """A weekday email carries its own 🔁 recall questions and 🔑 answers
+    (A3). They are LAST week's material, not this week's — leaving them in the
+    digest made Saturday re-ask Monday's question and lift Monday's answer.
+    Fixture: a real 2026-10-05 TECHNICAL archive from the 2026-09-29 dry run
+    (hero image replaced by a cid: reference)."""
+    html = (Path(__file__).parent / "fixtures"
+            / "email_archive_2026-10-05_TECHNICAL.html").read_text(encoding="utf-8")
+    # The fixture really does contain both boxes and their text.
+    assert 'class="recall"' in html and 'class="answers"' in html
+    assert "ทวนของเก่า" in html and "เฉลย" in html
+
+    out = _strip_html_to_text(html)
+
+    assert "ทวนของเก่า" not in out
+    assert "🔑 เฉลย" not in out
+    # the recall question and its answer are both gone, verbatim
+    assert "Parasitic Load และ Capacity Factor ของโรงไฟฟ้าชีวมวลอย่างไร?" not in out
+    assert "BESS ทำหน้าที่ตอบสนองการจ่ายไฟฟ้าทันที" not in out
+    # the article body and its kit survive
+    assert "🧰" in out
+    assert "VFD" in out

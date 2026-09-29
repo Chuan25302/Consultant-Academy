@@ -12,6 +12,7 @@ manual sends, one-off scripts). One line each: date · what · who is affected
 | 2026-09-11 | Secret `VERTEX_AI_LOCATION` (`us-central1`) deleted by owner; no workflow read it after PR #5 | None | Location is now set in the workflow file | Re-create the secret with `us-central1` (it would still be unused) |
 | 2026-09-11 | Secret `ALERT_EMAIL` created = `tanet.i@pttplc.com`; one `[TEST]` failure alert sent there from a local run | Owner only | Owner asked to be emailed when a run fails | Delete the secret (alerts become a no-op) |
 | 2026-09-29 | Retention is NOT measured: mail is one-way by owner decision (no replies, no pixels, static site stores nothing). A per-run log line (shape/kit/recall/repairs) exists for operations only. Six-pillar dry run made with real Vertex calls (6 articles, no uploads, no email). | Measurement | A8/C2: record the limit instead of inventing a proxy | n/a |
+| 2026-09-29 | Three sample emails (SOFTSKILL, TECHNICAL, SUSTAINABILITY — six-pillar dry-run output) sent to `tanet.i@pttplc.com` only, via SMTP 465 with a 300s timeout (the 30s default times out on ~5 MB of attachments). Corrects the row above, which recorded the dry run as "no email". | 1 recipient (owner) | Owner review of the new six-pillar format before merging `chuan` | n/a (already delivered) |
 
 ## Reminders
 

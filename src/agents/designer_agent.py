@@ -73,10 +73,17 @@ TLDR_HEADING_RE = re.compile(
     r'^##\s*💡\s*ประเด็นวันนี้\s*$',
     flags=re.MULTILINE,
 )
+# Stops at the first blank line, so Task 4's '**หลักคิดวันนี้:** …' paragraph
+# stays out of it: the TL;DR is persisted to __summaries.json and reused as the
+# inbox preheader, the site card snippet, <meta name="description"> and the
+# text quoted into next week's recall prompt — a 140-char cut through two
+# paragraphs polluted all of them.
 TLDR_BODY_RE = re.compile(
-    r'##\s*💡\s*ประเด็นวันนี้\s*\n+(.+?)(?=\n##|\Z)',
+    r'##\s*💡\s*ประเด็นวันนี้\s*\n+(.+?)(?=\n[ \t]*\n|\n##|\Z)',
     flags=re.DOTALL,
 )
+# Belt and braces: same cut when the model forgets the blank line.
+MENTAL_MODEL_MARK = 'หลักคิดวันนี้'
 # Strip markdown noise to estimate Thai reading time by character count.
 MD_NOISE_RE = re.compile(r'[#*_`>\[\]\(\)\|]')
 
@@ -405,13 +412,20 @@ body{{font-family:'CordiaUPC','Cordia New','Sarabun','Segoe UI',sans-serif;backg
 
     @staticmethod
     def _extract_tldr(md: str) -> str:
-        """Pull plain-text content of the `## 💡 ประเด็นวันนี้` section so
-        we can show it in the inbox preheader. Falls back to empty string
-        when Translator output didn't include the section."""
+        """Pull the plain-text FIRST PARAGRAPH of the `## 💡 ประเด็นวันนี้`
+        section so we can show it in the inbox preheader. The mental-model
+        paragraph that follows it is a separate thought and must not be
+        half-swallowed by the 140-char cut. Falls back to empty string when
+        Translator output didn't include the section."""
         m = TLDR_BODY_RE.search(md or "")
         if not m:
             return ""
         text = m.group(1).strip()
+        cut = text.find(MENTAL_MODEL_MARK)
+        # Nothing but markdown emphasis before the mark means the TL;DR line
+        # is missing — then the mental model is the best snippet we have.
+        if cut != -1 and text[:cut].strip(" *\t\n"):
+            text = text[:cut].rstrip(" *\t\n")
         # Strip markdown emphasis + collapse whitespace; preheaders should
         # be a single short line.
         text = MD_NOISE_RE.sub("", text)

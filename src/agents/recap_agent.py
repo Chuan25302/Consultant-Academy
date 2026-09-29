@@ -20,8 +20,12 @@ logger = logging.getLogger(__name__)
 _STYLE_OR_SCRIPT_RE = re.compile(
     r"<(style|script)\b[^>]*>.*?</\1>", re.DOTALL | re.IGNORECASE
 )
+# `recall`/`answers` are the weekday email's own daily-recall box and its
+# answer box (A3). They are not this week's material — feeding them in made
+# Saturday re-ask Monday's question, mislabel the day, and lift the answer
+# from Monday's 🔑 box.
 _CHROME_DIV_RE = re.compile(
-    r'<div\s+class="(?:preheader|km-banner|ftr|meta)"[^>]*>.*?</div>',
+    r'<div\s+class="(?:preheader|km-banner|ftr|meta|recall|answers)"[^>]*>.*?</div>',
     re.DOTALL | re.IGNORECASE,
 )
 _BLOCK_CLOSE_RE = re.compile(

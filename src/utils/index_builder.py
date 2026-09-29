@@ -82,6 +82,7 @@ class IndexBuilder:
         self._summaries_cache: dict | None = None
         # True when the last load FAILED (as opposed to "file absent"); a
         # failed load is never cached and blocks update_summary's rewrite.
+        # "Absent" is not cached either — see _load_summaries.
         self._summaries_load_failed = False
         self._archive_index_cache: dict | None = None
 
@@ -117,7 +118,14 @@ class IndexBuilder:
         if self._summaries_load_failed:
             return {}  # not cached: a later call retries
         if not file_id:
-            self._summaries_cache = {}  # genuinely absent: first ever write
+            # Deliberately NOT cached. A listing that succeeds but matches
+            # nothing looks exactly like "the file is there and this query
+            # missed it" (eventual consistency, a permission blip, a renamed
+            # parent) — and the miss is now ~8 minutes before the write,
+            # because recent_scenes() loads summaries at the top of the run.
+            # Re-querying at write time costs one cheap files.list; caching the
+            # verdict costs every stored TL;DR. A genuinely absent file still
+            # returns {} here, so the first-ever write goes through.
             return {}
         try:
             raw = self.drive.download_file(file_id)
