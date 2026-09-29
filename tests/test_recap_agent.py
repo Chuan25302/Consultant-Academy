@@ -4,6 +4,7 @@ Mon–Fri post bodies into Gemini and emails the result.
 No real Drive/SMTP/Vertex calls — everything is mocked."""
 from __future__ import annotations
 
+import re
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -371,24 +372,41 @@ def test_recap_prompt_is_one_way_and_keeps_word_budget():
     # a reply/form request may appear only inside the prohibition sentences
     stripped = (prompt.replace("ห้ามขอให้ผู้อ่านตอบกลับอีเมล", "")
                       .replace("ห้ามขอให้กรอกฟอร์ม", ""))
-    assert "ตอบกลับ" not in stripped
-    assert "ฟอร์ม" not in stripped
+    for term in ("ตอบกลับ", "ฟอร์ม", "reply", "Reply", "ส่งกลับ", "แจ้งกลับ",
+                 "ส่งคำตอบ", "กรอก"):
+        assert term not in stripped, f"one-way mail must not ask: {term}"
     assert "ห้ามขอให้ผู้อ่านตอบกลับอีเมล" in prompt
     assert "ไม่เกิน 500 คำ" in prompt
     assert "ทวนของเก่า" not in prompt, "daily wording must stay distinct"
 
 
-def test_recap_markdown_renders_recall_and_answers_boxes_with_css():
+def test_recap_prompt_keeps_anti_fabrication_rule():
+    assert "ห้ามแต่ง" in _recap_prompt()
+
+
+def _skeleton_from_prompt() -> str:
+    """Headings exactly as the prompt tells the LLM to emit them."""
+    from src.agents.recap_agent import PROMPT
+    lines = []
+    for line in PROMPT.splitlines():
+        if re.match(r"^#{2,3} ", line):
+            lines += [line.replace("{week}", "20"), "", "- x", ""]
+    return "\n".join(lines)
+
+
+def test_recap_markdown_renders_recall_kcapture_answers_as_sibling_boxes():
     from src.agents.designer_agent import DesignerAgent
-    md = (
-        "## สรุปสัปดาห์ที่ 20\n\n## 🔁 ทวนสัปดาห์นี้\n\n- Q1 (จ.)?\n\n"
-        "## Knowledge Capture\n\n- term\n\n## 🔑 เฉลย\n\n- A1\n"
-    )
     html = DesignerAgent.create_recap_email(
-        md, 20, [{"day_th": "จ", "topic": "t", "date_th": "11 พ.ค."}],
+        _skeleton_from_prompt(), 20,
+        [{"day_th": "จ", "topic": "t", "date_th": "11 พ.ค."}],
         _saturday_2026_05_16())
-    assert "ทวนสัปดาห์นี้" in html and "เฉลย" in html
-    assert "Knowledge Capture" in html
-    # premailer inlines the recall/answers rules onto the boxes
+    assert 'class="recall"' in html and 'class="answers"' in html
+    assert 'class="kcapture"' in html, "Knowledge Capture must render as its own box"
+    recall, kc, ans = (html.index(f'class="{c}"')
+                       for c in ("recall", "kcapture", "answers"))
+    assert recall < kc < ans
+    # siblings, not nested: each box closes before the next opens
+    assert html.index("</div>", recall) < kc
+    assert html.index("</div>", kc) < ans
+    # premailer inlined the recall/answers rules
     assert "#FFF8E1" in html and "dashed" in html
-    assert html.index("ทวนสัปดาห์นี้") < html.index("Knowledge Capture") < html.index("เฉลย")
