@@ -4,7 +4,10 @@ Per-pillar email format profiles (spec 2026-09-29, A2/A6).
 Data only — no logic lives here, so editing a profile cannot break prompt
 assembly. TranslatorAgent reads these; EditorAgent enforces the result.
 """
+import hashlib
+from collections.abc import Sequence
 from dataclasses import dataclass
+from datetime import date
 
 
 @dataclass(frozen=True)
@@ -131,3 +134,23 @@ FORMAT_PROFILES = {
 def profile_for(pillar: str) -> Profile:
     """Unknown pillar falls back to TECHNICAL, matching ExpertAgent."""
     return FORMAT_PROFILES.get(pillar, FORMAT_PROFILES["TECHNICAL"])
+
+
+def scene_for(day: date, industry: str, scenes: Sequence[str],
+              recent: Sequence[str] = ()) -> str:
+    """Pick a case scene deterministically (spec A2 / v1 §4).
+
+    Same (day, industry, pool) always yields the same scene so the choice
+    is testable, and scenes used on recent days are skipped so the reader
+    does not meet the same factory manager twice in a row. The model never
+    chooses.
+    """
+    if not scenes:
+        raise ValueError("scene pool must not be empty")
+    digest = hashlib.sha256(industry.encode("utf-8")).digest()
+    start = (day.toordinal() + digest[0]) % len(scenes)
+    rotated = list(scenes[start:]) + list(scenes[:start])
+    for scene in rotated:
+        if scene not in recent:
+            return scene
+    return rotated[0]  # pool smaller than the recent window

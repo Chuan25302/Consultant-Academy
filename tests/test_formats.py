@@ -1,6 +1,8 @@
+from datetime import date
+
 import pytest
 
-from src.agents.formats import FORMAT_PROFILES, KIT_SPECS, LEVEL_GUIDE, profile_for
+from src.agents.formats import FORMAT_PROFILES, KIT_SPECS, LEVEL_GUIDE, profile_for, scene_for
 
 PILLARS = ["TECHNICAL", "INDUSTRY", "FRAMEWORK",
            "SOFTSKILL", "COMPLIANCE", "SUSTAINABILITY"]
@@ -49,3 +51,31 @@ def test_calculator_kit_requires_source_attribution():
     instructions = KIT_SPECS["calculator"].instructions
     assert "ที่มา" in instructions, "must require source attribution"
     assert "ห้าม LaTeX" in instructions, "must forbid LaTeX notation"
+
+
+POOL = ("โรงพยาบาล 24 ชั่วโมง", "โรงแรมริมทะเล", "อาคารสำนักงานให้เช่า",
+        "โรงงานกระดาษ", "CFO กลุ่มค้าปลีก")
+
+
+def test_same_day_and_industry_always_gives_the_same_scene():
+    a = scene_for(date(2026, 10, 1), "Hospitality", POOL)
+    b = scene_for(date(2026, 10, 1), "Hospitality", POOL)
+    assert a == b
+
+
+def test_different_industries_can_differ_on_the_same_day():
+    seen = {scene_for(date(2026, 10, 1), ind, POOL)
+            for ind in ["Hospitality", "Food", "Automotive", "Retail"]}
+    assert len(seen) > 1
+
+
+def test_three_consecutive_days_give_three_different_scenes():
+    d1 = scene_for(date(2026, 10, 1), "Food", POOL)
+    d2 = scene_for(date(2026, 10, 2), "Food", POOL, recent=[d1])
+    d3 = scene_for(date(2026, 10, 3), "Food", POOL, recent=[d2, d1])
+    assert len({d1, d2, d3}) == 3
+
+
+def test_recent_covering_the_whole_pool_still_returns_a_scene():
+    # Never raise: a small pool must degrade, not crash the run.
+    assert scene_for(date(2026, 10, 4), "Food", POOL, recent=POOL) in POOL
