@@ -80,6 +80,9 @@ class IndexBuilder:
         self.settings = settings
         self._articles_cache: list[dict] | None = None
         self._summaries_cache: dict | None = None
+        # True when the last load FAILED (as opposed to "file absent"); a
+        # failed load is never cached and blocks update_summary's rewrite.
+        self._summaries_load_failed = False
         self._archive_index_cache: dict | None = None
 
     def _summaries_file_id(self) -> str | None:
@@ -101,6 +104,7 @@ class IndexBuilder:
             return entry["id"] if isinstance(entry, dict) else None
         except Exception as e:
             logger.warning(f"Could not query summaries file: {e}")
+            self._summaries_load_failed = True
             return None
 
     def _load_summaries(self) -> dict:
@@ -108,25 +112,29 @@ class IndexBuilder:
         when missing or unreadable — find_related stays robust either way."""
         if self._summaries_cache is not None:
             return self._summaries_cache
+        self._summaries_load_failed = False
         file_id = self._summaries_file_id()
+        if self._summaries_load_failed:
+            return {}  # not cached: a later call retries
         if not file_id:
-            self._summaries_cache = {}
+            self._summaries_cache = {}  # genuinely absent: first ever write
             return {}
         try:
             raw = self.drive.download_file(file_id)
         except Exception as e:
             logger.warning(f"download summaries failed: {e}")
-            self._summaries_cache = {}
+            self._summaries_load_failed = True
             return {}
         if not isinstance(raw, str) or not raw:
-            self._summaries_cache = {}
+            self._summaries_load_failed = True
             return {}
         try:
             data = json.loads(raw)
-            self._summaries_cache = data if isinstance(data, dict) else {}
         except (json.JSONDecodeError, TypeError):
-            logger.warning("__summaries.json malformed — treating as empty")
-            self._summaries_cache = {}
+            logger.warning("__summaries.json malformed — not overwriting it")
+            self._summaries_load_failed = True
+            return {}
+        self._summaries_cache = data if isinstance(data, dict) else {}
         return self._summaries_cache
 
     def _collect_email_archive_ids(self) -> dict[tuple[str, str], str]:
@@ -170,6 +178,10 @@ class IndexBuilder:
         if not docx_id:
             return None
         summaries = self._load_summaries()
+        if self._summaries_load_failed:
+            logger.warning("update_summary skipped: summaries could not be "
+                           "loaded, refusing to overwrite the stored file")
+            return None
         summaries[docx_id] = {
             "tldr": tldr or "",
             "html_id": html_id or "",
@@ -188,12 +200,12 @@ class IndexBuilder:
 
     def recent_scenes(self, limit: int = 2, exclude_date: str = "") -> list[dict]:
         """Most recent stored scenes, newest first (spec 4 no-repeat rule).
-        `exclude_date` skips the date being generated so a re-run of that
-        day sees the same history as the first run."""
+        Only records dated strictly BEFORE `exclude_date` count, so a
+        re-run or backfill sees the same history as the first run."""
         summaries = self._load_summaries()
         rows = [v for v in summaries.values()
                 if isinstance(v, dict) and v.get("scene")
-                and not (exclude_date and v.get("date") == exclude_date)]
+                and (not exclude_date or v.get("date", "") < exclude_date)]
         rows.sort(key=lambda r: r.get("date", ""), reverse=True)
         return rows[:limit]
 

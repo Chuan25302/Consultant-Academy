@@ -196,3 +196,48 @@ def test_update_summary_without_scene_keeps_old_record_shape():
     b._load_summaries = MagicMock(return_value={})
     b.update_summary("doc1", "tl", "h1")
     assert b._summaries_cache["doc1"] == {"tldr": "tl", "html_id": "h1"}
+
+
+def test_recent_scenes_ignores_records_dated_after_the_generated_date():
+    summaries = dict(SCENES, e={"scene": "S-future", "date": "2026-05-06"})
+    rows = _scene_builder(summaries).recent_scenes(limit=5, exclude_date="2026-05-03")
+    assert [r["scene"] for r in rows] == ["S-mid", "S-old"]
+
+
+# --- failed loads must never wipe stored summaries --------------------------
+
+def _drive_builder(download):
+    drive = MagicMock()
+    drive._list.return_value = {"files": [{"id": "sum1"}]}
+    drive.download_file.side_effect = download
+    return IndexBuilder(drive, MagicMock()), drive
+
+
+def test_failed_load_is_not_cached_and_is_retried():
+    b, drive = _drive_builder([RuntimeError("drive down"),
+                               '{"x": {"tldr": "kept"}}'])
+    assert b._load_summaries() == {}
+    assert b._summaries_cache is None
+    assert b._load_summaries() == {"x": {"tldr": "kept"}}
+    assert drive.download_file.call_count == 2
+
+
+def test_update_summary_after_failed_load_does_not_write():
+    b, drive = _drive_builder([RuntimeError("drive down")])
+    assert b.update_summary("doc1", "tl", "h1", scene="S", date="2026-05-04") is None
+    drive.update_or_create.assert_not_called()
+
+
+def test_update_summary_after_failed_file_lookup_does_not_write():
+    b, drive = _drive_builder([])
+    drive._list.side_effect = RuntimeError("list down")
+    assert b.update_summary("doc1", "tl", "h1") is None
+    drive.update_or_create.assert_not_called()
+
+
+def test_update_summary_with_absent_file_still_writes_first_record():
+    drive = MagicMock()
+    drive._list.return_value = {"files": []}
+    b = IndexBuilder(drive, MagicMock())
+    b.update_summary("doc1", "tl", "h1")
+    drive.update_or_create.assert_called_once()

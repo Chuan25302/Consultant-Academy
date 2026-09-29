@@ -113,5 +113,17 @@ def test_recent_scenes_feed_scene_for(deps):
 
 def test_recent_scenes_failure_means_no_constraint(deps):
     main_mod.IndexBuilder.return_value.recent_scenes.side_effect = RuntimeError("x")
-    result = _run()
+    with patch.object(main_mod, "scene_for", return_value="S") as sf:
+        result = _run()
     assert result["status"] == "success"
+    assert sf.call_args.kwargs["recent"] == []
+
+
+def test_non_dry_run_persists_scene_and_date_in_the_summary(deps):
+    deps.upload.return_value = "id1"
+    with patch.object(main_mod, "now_bangkok",
+                      return_value=datetime(2026, 5, 4, 8, 0, tzinfo=BKK)):
+        main_mod.main(skip_validation=True, dry_run=False)
+    scene = main_mod.TranslatorAgent.return_value.simplify.call_args.kwargs["scene"]
+    call = main_mod.IndexBuilder.return_value.update_summary.call_args
+    assert call.kwargs == {"scene": scene, "date": "2026-05-04"}
