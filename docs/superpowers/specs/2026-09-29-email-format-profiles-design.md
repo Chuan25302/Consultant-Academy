@@ -361,19 +361,27 @@ site is static GitHub Pages). The spec records this as a permanent
 `NOT VERIFIED`, and nobody may claim "the team learns more" from any
 number produced here.
 
-What the pipeline logs about **itself**, weekly, appended to
-`docs/ops-log.md` by whoever reviews the week:
+*(Revised again 2026-09-29, owner: "ไม่เป็นไร ขอให้เนื้อหามันดี คนจะค่อย ๆ
+ได้เอง" — so no human-run measurement ritual either. A weekly log nobody
+fills in is worse than none: it rots and then gets quoted.)*
 
-| Metric | Source | What it does and does not say |
-|---|---|---|
-| Distinct article shapes in the last 10 issues | count of distinct pillar profiles used | says variety shipped; says nothing about learning |
-| Recall coverage: issues carrying a `🔁` block / issues sent | editor gate result in the run log | says the spacing loop ran; says nothing about whether anyone answered |
-| Editor repair rate: runs where a gate fired / runs | `✏️ Editor: repairing …` lines in the run log | catches an unsatisfiable gate burning a call every day (seat 4 MAJOR) |
+The run prints **one line at the end of each daily run**, for operations
+rather than for proof:
 
-Optional, owner-run, not required by this spec: at a team meeting, ask
-two people one question from an article 1–2 weeks old. `k of 2` is a
-tiny sample and must be reported with that denominator, never as a
-percentage.
+```
+📐 shape=SOFTSKILL kit=questions recall=2 repairs=0
+```
+
+It exists to catch an operational fault, not to evidence learning: a
+gate that is unsatisfiable for some pillar shows up as `repairs=1` every
+day, burning an LLM call and ~30s silently (seat 4 MAJOR). Nothing is
+aggregated, nothing is filed weekly, and no number from this line may be
+presented as evidence that anyone learned anything.
+
+Quality, not measurement, carries the retention goal: A2 (one mental
+model), A3 (spaced recall), A6 (level-appropriate depth) and A7 (sourced
+numbers) are the levers, and the six-pillar dry-run before merge is
+where a human judges whether the content is actually good.
 
 **A9 — supersedes "Design §5".** No `<details>`, no JS. The recall box
 and the answer box are ordinary table-based boxes rendered through

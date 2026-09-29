@@ -1438,12 +1438,23 @@ Expected: six files written; every row shows `kit=yes`; word counts land between
 
 Email the two most different pillars (e.g. SOFTSKILL and SUSTAINABILITY) to `tanet.i@pttplc.com` only, using the same one-recipient script used on 2026-09-11 (SMTP 465 locally; port 587 is blocked on the corporate network).
 
-- [ ] **Step 4: Record what is and is not measurable (A8)**
+- [ ] **Step 4: Add the one-line run summary and record the limit (A8)**
 
-Add to `docs/ops-log.md`:
+In `src/main.py`, next to the existing `💰 Daily cost` line:
+
+```python
+    logger.info(f"📐 shape={topic['pillar']} kit={profile.kit} "
+                f"recall={len(recall_items)} repairs={editor_repairs}")
+```
+
+where `editor_repairs` is `1` when `EditorAgent.review` fired its repair
+call and `0` otherwise — return it via `EditorAgent.last_repair_count`
+(an attribute set inside `review`, defaulting to `0`).
+
+Add one row to `docs/ops-log.md`:
 
 ```markdown
-| 2026-09-29 | Retention is NOT measured: mail stays one-way by owner decision (no replies, no pixels, static site stores nothing). Weekly log covers delivery only — distinct shapes per 10 issues, recall-block coverage, editor repair rate. | Measurement | A8/C2 — record the limit instead of inventing a proxy | n/a |
+| 2026-09-29 | Retention is NOT measured — mail is one-way by owner decision (no replies, no pixels, static site stores nothing). A per-run log line (shape/kit/recall/repairs) exists for operations only. | Measurement | A8/C2 — record the limit instead of inventing a proxy | n/a |
 ```
 
 - [ ] **Step 5: Commit**
@@ -1483,13 +1494,14 @@ gh pr merge <n> --merge
 
 Check the next morning's run log for: every call `200 OK`, no `[Error`, `class="kit"` present in the archived HTML, and the email delivered to 17 recipients.
 
-- [ ] **Step 5: Start the weekly delivery log**
+- [ ] **Step 5: Watch the run line for one week, then stop watching**
 
-Each Monday, append one row to `docs/ops-log.md` with the three
-self-measurable numbers from A8: distinct article shapes in the last 10
-issues, issues carrying a `🔁` block over issues sent, and runs where an
-editor gate fired over runs. These describe delivery only — when
-reporting them, say that retention itself is not measured.
+For the first seven runs, read the `📐` line in each run log. The only
+thing being looked for is `repairs=1` on the same pillar every day,
+which means that pillar's gate is unsatisfiable and is burning an LLM
+call daily — fix the gate, do not relax it blindly. After that week no
+routine logging is required: retention is not measured, and content
+quality is judged by reading the email, not by a number.
 
 ---
 
