@@ -9,7 +9,9 @@ from src.agents.formats import (
     KIT_SPECS,
     LEVEL_GUIDE,
     REFERENCE_FIGURES,
+    listed_figures_in,
     profile_for,
+    reference_figure_values,
     scene_for,
 )
 
@@ -129,3 +131,24 @@ def test_calculator_instructions_resolve_the_source_rule():
     ins = KIT_SPECS["calculator"].instructions
     assert "ประมาณการ" in ins and "เนื้อหาเทคนิค" in ins
 
+
+
+def test_every_listed_figure_is_detectable_in_prose():
+    """The editor's source gate only fires on figures this parser can see, so
+    a figure written in a shape it cannot parse would silently stop being
+    gated. Every line of the list must be recognised in its own text."""
+    for line in _figure_lines():
+        assert listed_figures_in(line), line
+    assert len(reference_figure_values()) == len(_figure_lines())
+
+
+def test_unlisted_numbers_are_not_mistaken_for_listed_ones():
+    assert listed_figures_in("ค่าไฟที่โรงงานจ่าย 3.8 บาท/kWh (ประมาณการ)") == ()
+    assert listed_figures_in("ใช้ไฟ 180000 kWh/ปี") == ()
+    assert listed_figures_in("อายุ 5 ปี") == ()
+
+
+def test_a_listed_figure_is_found_across_spacing_and_dash_variants():
+    assert listed_figures_in("= kWh/ปี x 4.2บาท/kWh") == ("4.2บาท/kWh",)
+    assert listed_figures_in("อายุใช้งาน 15-20 ปี") == ("15-20ปี",)
+    assert listed_figures_in("อายุใช้งาน 15–20 ปี") == ("15-20ปี",)

@@ -1,8 +1,15 @@
+import re
+from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
 
-from src.agents.editor_agent import NUMBER_WITH_UNIT_RE, EditorAgent
+from src.agents.editor_agent import (
+    MAX_THAI_CHARS,
+    NUMBER_WITH_UNIT_RE,
+    THAI_CHAR_RE,
+    EditorAgent,
+)
 
 GOOD = """## 💡 ประเด็นวันนี้
 ลูกค้าไม่ต้องการ chiller ใหม่ แต่ต้องการลดค่าไฟที่วัดผลได้
@@ -56,10 +63,33 @@ def test_check_recognizes_thai_units():
     assert not any("ตัวเลข" in i for i in issues)
 
 
-def test_check_flags_overlong_content():
-    long_md = "word " * 1300 + "\n## Consultant Move\nถาม\n\n📖 ศัพท์น่ารู้: A=B\n5000 บาท 800 kWh 25%"
-    issues = EditorAgent.check(long_md)
-    assert any("ยาว" in i for i in issues)
+def test_check_flags_overlong_thai_content():
+    """A5: the gate measures Thai CHARACTERS. Thai has no spaces, so the old
+    word-count ceiling (1,200 words) could never fire on a Thai draft."""
+    long_md = GOOD + "\nวิธีลดต้นทุนพลังงานในโรงงานอย่างเป็นระบบ " * 200
+    assert len(long_md.split()) < 1200  # a word count still would not fire
+    assert any("ยาว" in i for i in EditorAgent.check(long_md))
+
+
+def test_a_normal_length_thai_article_does_not_trip_the_gate():
+    """~5,800 Thai characters — above the longest real sample of the
+    2026-09-29 dry run (5,464) and still below the ceiling."""
+    md = GOOD + "\nวิธีลดต้นทุนพลังงานในโรงงานอย่างเป็นระบบ " * 150
+    assert 5500 < len(THAI_CHAR_RE.findall(md)) < MAX_THAI_CHARS
+    assert not any("ยาว" in i for i in EditorAgent.check(md))
+
+
+def test_ceiling_sits_above_a_real_dry_run_article():
+    """Guard the constant against a future 'tidy-up' that lowers it under the
+    real content. Body text of a captured 2026-10-05 TECHNICAL email
+    (tests/fixtures/, six-pillar dry run 2026-09-29)."""
+    html = (Path(__file__).parent / "fixtures"
+            / "email_archive_2026-10-05_TECHNICAL.html").read_text(encoding="utf-8")
+    body = re.sub(r"<(style|script)\b[^>]*>.*?</\1>", " ", html, flags=re.S)
+    body = re.sub(r'<div class="(?:preheader|km-banner|ftr|meta)"[^>]*>.*?</div>',
+                  " ", body, flags=re.S)
+    real_thai = len(THAI_CHAR_RE.findall(re.sub(r"<[^>]+>", " ", body)))
+    assert 4000 < real_thai < MAX_THAI_CHARS
 
 
 def test_review_skips_llm_when_content_passes():
@@ -271,9 +301,54 @@ def test_calculator_kit_passes_its_gate():
     assert not any("สูตร" in i or "ที่มา" in i for i in issues)
 
 
-def test_calculator_reference_numbers_need_a_source():
+def test_calculator_listed_reference_figure_without_its_source_fails():
+    """'4.2 บาท/kWh' IS in REFERENCE_FIGURES, so quoting it bare must fail.
+    (Before the A7/Task-8 fix this test passed for the wrong reason: the gate
+    demanded a source tag from every calculator kit, listed figure or not.)"""
     md = CALC_OK.replace(" — ที่มา: ค่าไฟเฉลี่ย กฟภ.", "")
+    assert "4.2 บาท/kWh" in md
     assert any("ที่มา" in i for i in EditorAgent.check(md, kit="calculator"))
+
+
+def test_calculator_kit_with_no_listed_figure_needs_no_source():
+    """Task 8 resolved A7 into three cases: only a figure taken FROM
+    REFERENCE_FIGURES carries its source. A kit whose numbers are all
+    'ประมาณการ' has no source to quote — asking for one made the repair call
+    invent one, in the section consultants read out to customers."""
+    md = CALC_OK.replace(
+        "ประหยัด = kWh × 4.2 บาท/kWh — ที่มา: ค่าไฟเฉลี่ย กฟภ.\n"
+        "ตัวอย่าง: 1000 kWh × 4.2 บาท/kWh = 4200 บาท/ปี\n",
+        "ประหยัด (บาท/ปี) = kWh/ปี × ค่าไฟที่โรงงานจ่าย (บาท/kWh)\n"
+        "ตัวแปร: การใช้ไฟ 180000 kWh/ปี (ประมาณการ)\n"
+        "ตัวอย่าง: 27000 kWh/ปี × 3.8 บาท/kWh = 102600 บาท/ปี (ประมาณการ)\n",
+    )
+    assert "ที่มา" not in md
+    assert not any("ที่มา" in i for i in EditorAgent.check(md, kit="calculator"))
+
+
+REVIEW_REPRO_KIT = """## 🧰 สูตรคำนวณพร้อมใช้
+- ประหยัด (บาท/ปี) = kWh/ปี x 4.2 บาท/kWh
+- ตัวแปร: การใช้ไฟ 180000 kWh/ปี (ประมาณการ)
+- ตัวอย่าง: 27000 kWh/ปี x 4.2 บาท/kWh = 113400 บาท/ปี
+"""
+
+
+def test_review_repro_kit_still_fails_because_it_quotes_the_listed_tariff():
+    """The markdown the final review offered as a false positive quotes
+    4.2 บาท/kWh, which IS a REFERENCE_FIGURES value — so the gate is right to
+    fire on it. The gate must name the figure, not ask for a source in
+    general."""
+    issues = EditorAgent._kit_issues(REVIEW_REPRO_KIT, "calculator")
+    assert any("4.2บาท/kWh" in i for i in issues)
+
+
+def test_the_same_kit_passes_once_the_listed_figure_is_sourced():
+    md = REVIEW_REPRO_KIT.replace(
+        "= kWh/ปี x 4.2 บาท/kWh",
+        "= kWh/ปี x 4.2 บาท/kWh — ที่มา: PEA/MEA tariff 2569",
+    )
+    assert not any("ที่มา" in i
+                   for i in EditorAgent._kit_issues(md, "calculator"))
 
 
 def test_calculator_formula_must_be_inside_the_kit_section():

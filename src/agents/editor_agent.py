@@ -11,7 +11,7 @@ Two-stage check (cheap → expensive):
 import logging
 import re
 
-from src.agents.formats import KIT_SPECS
+from src.agents.formats import KIT_SPECS, listed_figures_in
 from src.integrations.gemini_client import GeminiClient
 
 logger = logging.getLogger(__name__)
@@ -35,6 +35,16 @@ FORMULA_RE = re.compile(r"^[^#\n]*=[^\n]*$", re.MULTILINE)
 SOURCE_TAG_RE = re.compile(r"—\s*ที่มา\s*:")
 RECALL_RE = re.compile(r"^##\s*🔁", re.MULTILINE)
 ANSWER_RE = re.compile(r"^##\s*🔑", re.MULTILINE)
+
+# Length gate (A5). Thai has no spaces, so a word count cannot measure a Thai
+# draft — len(md.split()) stayed near 700 for a 5,000-character article and the
+# old 1,200-word ceiling could never fire. Measured on the six-pillar dry run of
+# 2026-09-29 (6/6 samples, article body only, Drive/email chrome stripped):
+# 4,203 / 4,353 / 4,469 / 4,646 / 4,703 / 5,464 Thai characters. 7,000 sits
+# ~28% above the longest real sample, so a normal long draft never trips it and
+# only a runaway one (~1.5× the A5 word target) does.
+MAX_THAI_CHARS = 7000
+THAI_CHAR_RE = re.compile(r"[฀-๿]")
 def _squash(text: str) -> str:
     """Whitespace-insensitive form for containment checks (multi-word scenes)."""
     return re.sub(r"\s+", "", text)
@@ -97,7 +107,11 @@ PROMPT = """
 - เก็บโครงสร้างเดิมไว้ ภาษาไทยเป็นหลัก ทับศัพท์ English ได้
 - เพิ่มสิ่งที่ขาด อย่าลบของที่มีอยู่
 - ตัวเลขต้องสมเหตุสมผล (ไม่กุขึ้น)
-- ความยาวรวมไม่เกิน 1,000 คำ และห้ามลบหัวข้อ 🧰 / 🔁 / 🔑 ที่มีอยู่
+- **ห้ามแต่งที่มาของตัวเลข** — ใส่ '— ที่มา: ...' ได้เฉพาะตัวเลขที่อยู่ในรายการ
+  'ข้อมูลอ้างอิง' โดยใช้ที่มาตามที่รายการนั้นระบุ ตัวเลขอื่นให้เขียนว่า 'ประมาณการ'
+  โดยไม่ใส่ที่มาและไม่อ้างชื่อมาตรฐานใด ๆ
+- ความยาวรวมไม่เกิน ~930 คำ (เนื้อหาหลัก 600–700 + เครื่องมือ ~150 + ทวนของเก่า ~80)
+  หรือประมาณ 7,000 ตัวอักษรไทย และห้ามลบหัวข้อ 🧰 / 🔁 / 🔑 ที่มีอยู่
 
 เนื้อหาเดิม:
 {content}
@@ -175,8 +189,18 @@ class EditorAgent:
         elif kit == "calculator":
             if not FORMULA_RE.search(section):
                 issues.append("สูตรคำนวณต้องมีบรรทัดที่มีเครื่องหมาย '='")
-            if not SOURCE_TAG_RE.search(section):
-                issues.append("ตัวเลขอ้างอิงต้องมี '— ที่มา: ...' กำกับ")
+            # A7 as resolved by formats.py: ONLY a figure quoted from the
+            # approved REFERENCE_FIGURES list needs its source tag. A kit
+            # built from fact-checked content or from 'ประมาณการ' values has
+            # no source to quote — demanding one made the repair call invent
+            # it, in the section consultants read out to customers.
+            quoted = listed_figures_in(section)
+            if quoted and not SOURCE_TAG_RE.search(section):
+                issues.append(
+                    f"ตัวเลข {', '.join(quoted)} มาจากรายการ 'ข้อมูลอ้างอิง' "
+                    "ต้องกำกับ '— ที่มา: ...' ตามที่ระบุในรายการนั้น "
+                    "(ห้ามแต่งที่มาใหม่ ตัวเลขอื่นไม่ต้องมีที่มา)"
+                )
         return issues
 
     @staticmethod
@@ -193,9 +217,13 @@ class EditorAgent:
                 f"มีตัวเลขจริง+หน่วย {len(nums)} จุด ต้องการอย่างน้อย 3 "
                 "(เช่น บาท / kWh / % / ปี)"
             )
-        word_count = len(md.split())
-        if word_count > 1200:
-            issues.append(f"เนื้อหายาว {word_count} คำ ต้องการไม่เกิน 1,000")
+        thai_chars = len(THAI_CHAR_RE.findall(md))
+        if thai_chars > MAX_THAI_CHARS:
+            issues.append(
+                f"เนื้อหายาว {thai_chars:,} ตัวอักษรไทย "
+                f"ต้องการไม่เกิน {MAX_THAI_CHARS:,} "
+                "(เนื้อหาหลัก 600–700 คำ + เครื่องมือ ~150 + ทวนของเก่า ~80)"
+            )
         # Anti-hallucination spot check (FactChecker should have cleaned this,
         # but Editor catches anything that slipped through).
         if SPECIFIC_COMPANY_RE.search(md):

@@ -6,6 +6,7 @@ Editing data or helper functions cannot break prompt assembly.
 TranslatorAgent reads data and calls helpers; EditorAgent enforces the result.
 """
 import hashlib
+import re
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import date
@@ -71,6 +72,47 @@ REFERENCE_FIGURES = """
 - อายุใช้งานหม้อไอน้ำอุตสาหกรรม 15–20 ปี — ที่มา: ASHRAE Equipment Life
 ถ้าต้องใช้ตัวเลขนอกรายการนี้ ให้เขียนว่า "ประมาณการ" และห้ามอ้างมาตรฐานใด ๆ
 """
+
+# A listed figure is "<number><unit>": 4.2 บาท/kWh, 0.4999 tCO2e/MWh,
+# 15–20 ปี. The unit is the non-space run right after the number, which is
+# what the list actually writes. Parsed out of REFERENCE_FIGURES itself so
+# the editor gate and the list can never drift apart.
+_FIGURE_VALUE_RE = re.compile(
+    r"(\d[\d,.]*(?:\s*[–—-]\s*\d[\d,.]*)?)\s*([A-Za-zก-๙][^\s]*)"
+)
+_SOURCE_MARK = "— ที่มา"
+
+
+def _match_form(text: str) -> str:
+    """Whitespace- and dash-insensitive form used to match figures inside
+    prose (Thai has no spaces, and a range may use '-' or '–')."""
+    return re.sub(r"\s+", "", text).replace("–", "-").replace("—", "-")
+
+
+def reference_figure_values() -> tuple[str, ...]:
+    """Every number+unit token listed in REFERENCE_FIGURES, in match form."""
+    values: list[str] = []
+    for line in REFERENCE_FIGURES.splitlines():
+        if not line.lstrip().startswith("-") or _SOURCE_MARK not in line:
+            continue
+        figure_part = line.split(_SOURCE_MARK)[0]
+        for number, unit in _FIGURE_VALUE_RE.findall(figure_part):
+            unit = unit.strip(".,;:)?")
+            if unit:
+                values.append(_match_form(number + unit))
+    return tuple(dict.fromkeys(values))
+
+
+def listed_figures_in(text: str) -> tuple[str, ...]:
+    """Which REFERENCE_FIGURES values `text` actually quotes.
+
+    Only those need a '— ที่มา:' tag (A7 + Task 8). Figures taken from the
+    fact-checked technical content, and 'ประมาณการ' values, must NOT be
+    given an invented source — so the gate must not ask for one.
+    """
+    haystack = _match_form(text)
+    return tuple(v for v in reference_figure_values() if v in haystack)
+
 
 LEVEL_GUIDE = {
     1: "L1 — พบครั้งแรก: นิยามศัพท์ให้ชัด ยกตัวอย่างเดียวที่เห็นภาพ ไม่ต้องลงลึกข้อยกเว้น",
