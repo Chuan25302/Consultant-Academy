@@ -1,3 +1,5 @@
+import re
+
 import pytest
 
 from src.agents.formats import FORMAT_PROFILES, KIT_SPECS
@@ -24,8 +26,12 @@ def test_translator_sees_the_whole_fact_checked_draft():
     assert tail_marker in g.prompt
 
 
-ANCHORS = ["## 💡 ประเด็นวันนี้", "Consultant Move",
-           "Knowledge Capture", "## 📖 ศัพท์น่ารู้"]
+ANCHOR_RES = [
+    re.compile(r"^## 💡 ประเด็นวันนี้$", re.M),
+    re.compile(r"^## (?:\d+\. )?Consultant Move$", re.M),
+    re.compile(r"^## (?:\d+\. )?Knowledge Capture$", re.M),
+    re.compile(r"^## 📖 ศัพท์น่ารู้$", re.M),
+]
 
 
 def _prompt(pillar="TECHNICAL", **kw):
@@ -39,8 +45,8 @@ def _prompt(pillar="TECHNICAL", **kw):
 @pytest.mark.parametrize("pillar", list(FORMAT_PROFILES))
 def test_every_pillar_prompt_keeps_all_four_anchors(pillar):
     p = _prompt(pillar)
-    for anchor in ANCHORS:
-        assert anchor in p, f"{pillar} lost anchor {anchor}"
+    for rx in ANCHOR_RES:
+        assert rx.search(p), f"{pillar} lost anchor {rx.pattern}"
 
 
 @pytest.mark.parametrize("pillar", list(FORMAT_PROFILES))
@@ -62,18 +68,20 @@ def test_prompt_pins_the_assigned_scene():
 
 
 def test_recall_block_appears_only_when_items_are_supplied():
-    assert "🔁 ทวนของเก่า" not in _prompt()
-    with_items = _prompt(recall_items=[
+    without = _prompt()
+    assert "🔁 ทวนของเก่า" not in without
+    assert "🔑 เฉลย" not in without
+    p = _prompt(recall_items=[
         {"title": "Pump curves", "date": "2026-10-10",
          "tldr": "เลือกปั๊มต้องดูจุดทำงานจริง"}])
-    assert "🔁 ทวนของเก่า" in with_items
-    assert "🔑 เฉลย" in with_items
-    assert "Pump curves" in with_items
+    q, a = p.index("🔁 ทวนของเก่า"), p.index("🔑 เฉลย")
+    assert q < a
+    assert q < p.index("Pump curves") < a
 
 
 def test_length_targets_match_the_amended_spec():
     p = _prompt()
-    assert "600" in p and "700" in p
+    assert "600–700 คำ" in p
 
 
 def test_simplify_passes_the_whole_fact_checked_draft():
@@ -83,3 +91,9 @@ def test_simplify_passes_the_whole_fact_checked_draft():
                                 "Topic", "TECHNICAL", level=1,
                                 industry="Food", scene="โรงงานกระดาษ")
     assert tail in g.prompt
+
+
+def test_scene_rule_only_present_when_a_scene_is_given():
+    assert "ห้ามเปลี่ยนไปใช้ฉากอื่น" not in _prompt(scene="")
+    assert "****" not in _prompt(scene="")
+    assert "ห้ามเปลี่ยนไปใช้ฉากอื่น" in _prompt(scene="โรงแรมริมทะเล")

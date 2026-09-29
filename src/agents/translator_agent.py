@@ -26,8 +26,7 @@ HEAD_TMPL = """
 หัวข้อ: {topic}
 Pillar: {pillar}
 ระดับความลึก: {level_guide}
-ฉากที่ต้องใช้ในตัวอย่าง/เคส: **{scene}** (ห้ามเปลี่ยนไปใช้ฉากอื่น)
-เนื้อหาเทคนิคที่ผ่านการตรวจแล้ว: {expert_content}
+{scene_line}เนื้อหาเทคนิคที่ผ่านการตรวจแล้ว: {expert_content}
 บริบทอุตสาหกรรม: {industry}
 
 Output format — Markdown ตรง ๆ ห้ามมีคำนำหน้า:
@@ -93,7 +92,9 @@ def build_prompt(*, topic: str, pillar: str, level: int, industry: str,
     parts = [HEAD_TMPL.format(
         topic=topic, pillar=pillar,
         level_guide=LEVEL_GUIDE.get(int(level or 1), LEVEL_GUIDE[1]),
-        scene=scene, expert_content=expert_content[:12000],
+        scene_line=(f"ฉากที่ต้องใช้ในตัวอย่าง/เคส: **{scene}** "
+                    "(ห้ามเปลี่ยนไปใช้ฉากอื่น)\n" if scene else ""),
+        expert_content=expert_content[:12000],
         industry=industry or "ทั่วไป")]
     for i, (title, intent) in enumerate(profile.sections, start=1):
         parts.append(SECTION_TMPL.format(index=i, title=title, intent=intent))
