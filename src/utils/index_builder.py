@@ -22,16 +22,15 @@ section in each email can show:
 import json
 import logging
 import re
-from datetime import datetime
+from datetime import date, datetime
 
 logger = logging.getLogger(__name__)
 
 
 def _ordinal(iso_date: str) -> int:
     """Convert ISO date string to ordinal for sorting. Returns 0 on parse error."""
-    from datetime import date as _date
     try:
-        return _date.fromisoformat(iso_date).toordinal()
+        return date.fromisoformat(iso_date).toordinal()
     except ValueError:
         return 0
 
@@ -247,32 +246,30 @@ class IndexBuilder:
         recallable (spec A3). Same cluster first, newest first. Best-effort:
         any Drive or summaries failure returns [] so the daily email still
         goes out (spec C3)."""
-        from datetime import date as _date
-
         try:
             articles = self.collect_articles()
             summaries = self._load_summaries()
+
+            picks: list[dict] = []
+            for a in articles:
+                try:
+                    published = date.fromisoformat(a["date"])
+                except (KeyError, ValueError, TypeError):
+                    continue
+                age = (today - published).days
+                if not (min_age_days <= age <= max_age_days):
+                    continue
+                tldr = (summaries.get(a["id"], {}) or {}).get("tldr", "").strip()
+                if not tldr:
+                    continue
+                picks.append({"title": a["title"], "date": a["date"], "tldr": tldr,
+                              "cluster": a.get("cluster", "General")})
+
+            picks.sort(key=lambda p: (p["cluster"] != cluster, -_ordinal(p["date"])))
+            return picks[:limit]
         except Exception as e:  # noqa: BLE001 — best-effort by design
             logger.warning(f"recall_candidates unavailable (non-blocking): {e}")
             return []
-
-        picks: list[dict] = []
-        for a in articles:
-            try:
-                published = _date.fromisoformat(a["date"])
-            except (KeyError, ValueError):
-                continue
-            age = (today - published).days
-            if not (min_age_days <= age <= max_age_days):
-                continue
-            tldr = (summaries.get(a["id"], {}) or {}).get("tldr", "").strip()
-            if not tldr:
-                continue
-            picks.append({"title": a["title"], "date": a["date"], "tldr": tldr,
-                          "cluster": a.get("cluster", "General")})
-
-        picks.sort(key=lambda p: (p["cluster"] != cluster, -_ordinal(p["date"])))
-        return picks[:limit]
 
     def render(self, articles: list[dict]) -> str:
         if not articles:
