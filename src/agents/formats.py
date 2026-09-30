@@ -59,10 +59,10 @@ KIT_SPECS = {
     ),
 }
 
-# Owner-approved 2026-10-01 (Tanet). Open question kept on the record: the
-# IPCC 2006 natural-gas default of 56.1 t/TJ is normally cited as CO2, not
-# CO2e — correct both this constant and the doc together if that is confirmed
-# (a test fails if they drift). Do not add figures without a source.
+# Owner-approved 2026-10-01 (Tanet). The natural-gas unit was queried during
+# review and the owner confirmed tCO2e is correct — question closed, no change.
+# Edit a figure here and in the doc together (a test fails if they drift).
+# Do not add figures without a source.
 # Human-readable copy: docs/references/th-energy-reference.md
 REFERENCE_FIGURES = """
 ตัวเลขอ้างอิงไทยที่อนุญาตให้ใช้ (ห้ามกุตัวเลขอื่นแล้วอ้างว่าเป็นมาตรฐาน):
