@@ -175,7 +175,7 @@ Article:
 # Recall questions + answers are about OLDER articles; keep them out of
 # today's drawing brief (and out of its character budget).
 _QUIZ_SECTION_RE = re.compile(
-    r"^##[ \t]+(?:🔁[ \t]*ทวนของเก่า|🔑[ \t]*เฉลย)[^\n]*\n?.*?(?=^##[ \t]|\Z)",
+    r"^##[ \t]*(?:🔁|🔑)[^\n]*\n?.*?(?=^##[ \t]|\Z)",
     re.MULTILINE | re.DOTALL,
 )
 

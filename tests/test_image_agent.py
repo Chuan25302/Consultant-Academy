@@ -122,3 +122,15 @@ def test_diagnostic_log_survives_missing_attributes(caplog):
     agent.client.models.generate_content.return_value = object()
     with caplog.at_level(logging.INFO, logger=image_agent.logger.name):
         assert agent._call_gemini_image("p") is None
+
+
+def test_strip_survives_paraphrased_headings():
+    md = (
+        "## 💡 ประเด็น\nหลัก\n\n## 🧰 เครื่องมือ\nkit\n\n"
+        "## 🔁 ทวนความรู้เก่า\n- q1\n\n## 🔑 เฉลยคำถาม\n- a1\n\n"
+        "## 📖 ศัพท์\n- t\n"
+    )
+    out = strip_quiz_sections(md)
+    assert "q1" not in out and "a1" not in out
+    assert "🔁" not in out and "🔑" not in out
+    assert "## 🧰 เครื่องมือ" in out and "## 📖 ศัพท์" in out and "- t" in out
