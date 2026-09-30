@@ -59,10 +59,11 @@ KIT_SPECS = {
     ),
 }
 
-# PENDING OWNER VERIFICATION: these figures were drafted by the plan author and
-# have NOT been confirmed by the domain owner. Confirm each one against its
-# cited source before anyone quotes it to a customer. Do not add figures
-# without a source. Human-readable copy: docs/references/th-energy-reference.md
+# Owner-approved 2026-10-01 (Tanet). Open question kept on the record: the
+# IPCC 2006 natural-gas default of 56.1 t/TJ is normally cited as CO2, not
+# CO2e — correct both this constant and the doc together if that is confirmed
+# (a test fails if they drift). Do not add figures without a source.
+# Human-readable copy: docs/references/th-energy-reference.md
 REFERENCE_FIGURES = """
 ตัวเลขอ้างอิงไทยที่อนุญาตให้ใช้ (ห้ามกุตัวเลขอื่นแล้วอ้างว่าเป็นมาตรฐาน):
 - ค่าไฟเฉลี่ยภาคอุตสาหกรรม 4.2 บาท/kWh — ที่มา: PEA/MEA tariff 2569
