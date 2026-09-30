@@ -20,6 +20,7 @@ Cost: ~$0.039/image (Gemini 2.5 Flash Image, single call per day).
 """
 import logging
 import os
+import re
 
 from google import genai
 from google.genai import types
@@ -171,6 +172,20 @@ Article:
 {article}"""
 
 
+# Recall questions + answers are about OLDER articles; keep them out of
+# today's drawing brief (and out of its character budget).
+_QUIZ_SECTION_RE = re.compile(
+    r"^##[ \t]+(?:🔁[ \t]*ทวนของเก่า|🔑[ \t]*เฉลย)[^\n]*\n?.*?(?=^##[ \t]|\Z)",
+    re.MULTILINE | re.DOTALL,
+)
+
+
+def strip_quiz_sections(md: str) -> str:
+    """Drop the '## 🔁 ทวนของเก่า' and '## 🔑 เฉลย' sections (heading up to
+    the next '## ' heading or end of text). No-op when neither exists."""
+    return _QUIZ_SECTION_RE.sub("", md or "")
+
+
 def _is_imagen(model: str) -> bool:
     return model.startswith("imagen")
 
@@ -214,20 +229,26 @@ class ImageAgent:
             # Gemini 2.5 Flash Image's ~32k-token window comfortably
             # holds article + style template; a separate text-only
             # brief generator is no longer needed.
-            article = (article_md or "").strip()[:6000]  # safety cap
+            article = strip_quiz_sections(article_md or "").strip()[:6000]  # safety cap
             prompt = IMAGE_PROMPT.format(article=article)
             logger.info(
                 f"🎨 ImageAgent: generating via {self.model_name} "
                 f"(prompt {len(prompt)} chars)"
             )
 
-            if _is_imagen(self.model_name):
-                data = self._call_imagen(prompt)
-            else:
-                data = self._call_gemini_image(prompt)
+            def _call() -> bytes | None:
+                if _is_imagen(self.model_name):
+                    return self._call_imagen(prompt)
+                return self._call_gemini_image(prompt)
 
+            data = _call()
             if not data:
-                logger.warning("🎨 model returned no image (safety filter?)")
+                # Image models intermittently answer with text only; one
+                # retry is cheap. Exactly one -- never loop.
+                logger.warning("🎨 no image on first attempt — retrying once")
+                data = _call()
+            if not data:
+                logger.warning("🎨 model returned no image after retry")
                 return None
             logger.info(f"🎨 image OK ({len(data) // 1024} KB)")
             return data
@@ -276,4 +297,29 @@ class ImageAgent:
                     data = getattr(inline, "data", None)
                     if data:
                         return data
+        self._log_no_image(response)
         return None
+
+    @staticmethod
+    def _log_no_image(response) -> None:
+        """Record what the response actually carried. Never raises."""
+        try:
+            finish, texts = [], []
+            for cand in getattr(response, "candidates", None) or []:
+                finish.append(str(getattr(cand, "finish_reason", None)))
+                parts = getattr(getattr(cand, "content", None), "parts", None) or []
+                for part in parts:
+                    t = getattr(part, "text", None)
+                    if isinstance(t, str) and t.strip():
+                        texts.append(t.strip())
+            feedback = getattr(response, "prompt_feedback", None)
+            block = getattr(feedback, "block_reason", None)
+            msg = (
+                f"🎨 no image in response: finish_reason={finish or 'no candidates'} "
+                f"block_reason={block} prompt_feedback={feedback}"
+            )
+            if texts:
+                msg += f"\n🎨 model text: {' '.join(texts)[:200]}"
+            logger.warning(msg)
+        except Exception as e:  # diagnostics must never break the run
+            logger.warning(f"🎨 no image in response (diagnostics failed: {e})")
