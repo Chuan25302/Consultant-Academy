@@ -40,6 +40,12 @@ class Settings:
     # pipeline behavior is unchanged.
     SITE_BASE_URL: str = os.getenv("SITE_BASE_URL", "").rstrip("/")
 
+    # Optional: enable Google Search grounding on ResearchAgent when set to
+    # "true" / "1" / "yes".
+    ENABLE_SEARCH_GROUNDING: bool = os.getenv(
+        "ENABLE_SEARCH_GROUNDING", ""
+    ).lower() in ("1", "true", "yes")
+
     # Default model for all agents. Override per-agent with
     # GEMINI_MODEL_<AGENT> env vars (RESEARCH | EXPERT | INDUSTRY |
     # TRANSLATOR | RECAP). Any model the google-genai SDK accepts.
@@ -55,7 +61,7 @@ class Settings:
         "research":     2500,
         "expert":       3500,
         "industry":     2000,
-        "factchecker":  5000,  # rewrites translator output (now 5 sections + KC)
+        "factchecker":  5000,  # reviews expert + industry output
         "translator":   8000,  # 800–1,000-word target + 3.x thinking; 5000 hit MAX_TOKENS on real runs
         "editor":       5000,
         "recap":        5000,  # deep extraction → 4 sections; 3500 hit MAX_TOKENS on real runs

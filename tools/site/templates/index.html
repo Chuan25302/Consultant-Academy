@@ -1,6 +1,6 @@
 {#-
-  Homepage — hero with motivation copy, latest articles, learning entry,
-  pillar grid, top clusters. Goal: make the reader want to dive in.
+  Homepage — hero with motivation copy, instant search, latest articles,
+  learning entry, pillar grid, top clusters. Goal: make the reader want to dive in.
 -#}<section class="hero">
   <span class="eyebrow">📚 Knowledge that compounds daily</span>
   <h1>เรียนรู้วันละ 1 บทความ<br>ก้าวสู่ Energy Consultant ที่ลูกค้าไว้วางใจ</h1>
@@ -23,7 +23,23 @@
   {% endif %}
 </section>
 
-<section class="block">
+<section class="search-box" aria-label="ค้นหาบทความ">
+  <div class="search-input-wrap">
+    <span class="search-icon" aria-hidden="true">🔍</span>
+    <input
+      type="search"
+      id="km-search-input"
+      class="search-input"
+      placeholder="ค้นหาบทความ คำศัพท์ อุปกรณ์ หรือมาตรฐาน (เช่น Chiller, Boiler, CBAM, ISO 50001)..."
+      autocomplete="off"
+    >
+    <button type="button" id="km-search-clear" class="search-clear" hidden aria-label="ล้างคำค้นหา">✕</button>
+  </div>
+  <div id="km-search-status" class="search-status muted small" hidden></div>
+  <div id="km-search-results" class="cards search-results" hidden></div>
+</section>
+
+<section class="block" id="latest-block">
   <div class="block-hdr">
     <h2>📰 บทความล่าสุด</h2>
     <span class="more"><a href="archive/">ดูทั้งหมดตามวันที่ →</a></span>
@@ -63,3 +79,83 @@
     {% endfor %}
   </ul>
 </section>
+
+<script>
+(function() {
+  var input = document.getElementById('km-search-input');
+  var clearBtn = document.getElementById('km-search-clear');
+  var statusEl = document.getElementById('km-search-status');
+  var resultsEl = document.getElementById('km-search-results');
+  if (!input) return;
+
+  var indexData = null;
+  var loading = false;
+
+  function loadIndex(cb) {
+    if (indexData !== null) { cb(indexData); return; }
+    if (loading) return;
+    loading = true;
+    fetch('assets/search-index.json')
+      .then(function(r) { return r.json(); })
+      .then(function(data) { indexData = data || []; loading = false; cb(indexData); })
+      .catch(function() { indexData = []; loading = false; cb(indexData); });
+  }
+
+  function escapeHtml(s) {
+    return String(s || '').replace(/[&<>"']/g, function(c) {
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+    });
+  }
+
+  function renderCard(p) {
+    var clusterHtml = p.cluster ? '<span>· 🎯 ' + escapeHtml(p.cluster) + '</span>' : '';
+    var imgBadge = p.image ? '<span>· 🎨 Infographic</span>' : '';
+    var tldrHtml = p.tldr ? '<p class="card-tldr">' + escapeHtml(p.tldr) + '</p>' : '';
+    var lvlHtml = p.level ? '<span class="lvl" data-l="' + p.level + '">L' + p.level + '</span>' : '';
+    return (
+      '<a class="card pillar-' + escapeHtml(p.pillar_slug) + '" href="' + escapeHtml(p.url) + '">' +
+        '<span class="card-tag">' + escapeHtml(p.pillar_icon) + ' ' + escapeHtml(p.pillar_label) + '</span>' +
+        '<h3 class="card-title">' + escapeHtml(p.title) + '</h3>' +
+        tldrHtml +
+        '<div class="card-meta">' +
+          '<span>📅 ' + escapeHtml(p.date_th) + '</span>' +
+          lvlHtml + clusterHtml + imgBadge +
+        '</div>' +
+      '</a>'
+    );
+  }
+
+  function doSearch() {
+    var q = (input.value || '').trim().toLowerCase();
+    clearBtn.hidden = !q;
+    if (!q) {
+      statusEl.hidden = true;
+      resultsEl.hidden = true;
+      resultsEl.innerHTML = '';
+      return;
+    }
+    loadIndex(function(items) {
+      var terms = q.split(/\s+/).filter(Boolean);
+      var matched = items.filter(function(item) {
+        var hay = [
+          item.title, item.tldr, item.cluster, item.industry,
+          item.pillar_label, item.date, item.date_th,
+          (item.keywords || []).join(' ')
+        ].join(' ').toLowerCase();
+        return terms.every(function(t) { return hay.indexOf(t) !== -1; });
+      });
+      statusEl.hidden = false;
+      statusEl.textContent = 'พบ ' + matched.length + ' บทความสำหรับ "' + input.value.trim() + '"';
+      resultsEl.hidden = matched.length === 0;
+      resultsEl.innerHTML = matched.slice(0, 24).map(renderCard).join('');
+    });
+  }
+
+  input.addEventListener('input', doSearch);
+  clearBtn.addEventListener('click', function() {
+    input.value = '';
+    doSearch();
+    input.focus();
+  });
+})();
+</script>

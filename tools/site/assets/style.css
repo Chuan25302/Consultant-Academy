@@ -387,3 +387,112 @@ p { margin: 0 0 1em; }
   .brand-name { font-size: 19px; }
   .brand-sub  { display: none; }
 }
+
+
+/* ---------- instant search bar (homepage) ---------- */
+.search-box {
+  margin: 0 0 36px;
+}
+.search-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  background: var(--surface);
+  border: 2px solid var(--line);
+  border-radius: var(--radius);
+  padding: 6px 16px;
+  box-shadow: var(--shadow-1);
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+.search-input-wrap:focus-within {
+  border-color: var(--accent);
+  box-shadow: var(--shadow-2);
+}
+.search-icon {
+  font-size: 20px;
+  margin-right: 10px;
+  user-select: none;
+}
+.search-input {
+  width: 100%;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-family: var(--font-sans);
+  font-size: 18px;
+  color: var(--ink);
+  padding: 10px 0;
+}
+.search-input::placeholder {
+  color: var(--muted-2);
+}
+.search-clear {
+  border: none;
+  background: var(--surface-2);
+  color: var(--muted);
+  border-radius: 999px;
+  width: 30px;
+  height: 30px;
+  cursor: pointer;
+  font-size: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.search-clear:hover {
+  background: var(--line);
+  color: var(--ink);
+}
+.search-status {
+  margin: 12px 4px 14px;
+  font-weight: 600;
+}
+.search-results {
+  margin-top: 8px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+/* ---------- infographic gallery ---------- */
+.infographic-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 24px;
+}
+.infographic-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: transform .15s ease, box-shadow .15s ease;
+}
+.infographic-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-2);
+}
+.infographic-thumb {
+  display: block;
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--line);
+  max-height: 440px;
+  overflow: hidden;
+}
+.infographic-thumb img {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+.infographic-info {
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+.infographic-info .card-title a {
+  color: var(--ink);
+}
+.infographic-info .card-title a:hover {
+  color: var(--accent);
+}

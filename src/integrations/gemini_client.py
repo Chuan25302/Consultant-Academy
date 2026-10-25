@@ -71,14 +71,22 @@ class GeminiClient:
             logger.info(f"✅ Gemini via API Key (default: {settings.GEMINI_MODEL})")
 
     @with_retries
-    def _call_model(self, prompt: str, max_tokens: int, model: str):
+    def _call_model(self, prompt: str, max_tokens: int, model: str,
+                    response_mime_type: str | None = None,
+                    use_search: bool = False):
+        cfg_kwargs: dict = {
+            "max_output_tokens": max_tokens,
+            "temperature": 0.7,
+        }
+        if use_search:
+            cfg_kwargs["tools"] = [types.Tool(google_search=types.GoogleSearch())]
+        elif response_mime_type:
+            cfg_kwargs["response_mime_type"] = response_mime_type
+
         return self.client.models.generate_content(
             model=model,
             contents=prompt,
-            config=types.GenerateContentConfig(
-                max_output_tokens=max_tokens,
-                temperature=0.7,
-            ),
+            config=types.GenerateContentConfig(**cfg_kwargs),
         )
 
     @staticmethod
@@ -93,11 +101,18 @@ class GeminiClient:
         return False
 
     def generate(self, prompt: str, max_tokens: int | None = None,
-                 agent_tag: str = "unknown") -> str:
+                 agent_tag: str = "unknown",
+                 response_mime_type: str | None = None,
+                 use_search: bool = False) -> str:
         model = self.settings.model_for(agent_tag)
         tokens = max_tokens or self.settings.tokens_for(agent_tag) or self.max_tokens
+        extra_kwargs: dict = {}
+        if response_mime_type:
+            extra_kwargs["response_mime_type"] = response_mime_type
+        if use_search:
+            extra_kwargs["use_search"] = True
         try:
-            response = self._call_model(prompt, tokens, model)
+            response = self._call_model(prompt, tokens, model, **extra_kwargs)
             if self._hit_max_tokens(response):
                 bigger = int(tokens * 1.5)
                 logger.warning(
@@ -105,7 +120,7 @@ class GeminiClient:
                     f"retrying once at {bigger}"
                 )
                 self._track(response, agent_tag, model)  # still log first attempt
-                response = self._call_model(prompt, bigger, model)
+                response = self._call_model(prompt, bigger, model, **extra_kwargs)
             self._track(response, agent_tag, model)
             return response.text or ""
         except Exception as e:
@@ -114,9 +129,16 @@ class GeminiClient:
 
     def generate_json(self, prompt: str, agent_tag: str = "unknown",
                       max_tokens: int | None = None) -> dict:
+        use_search = (
+            agent_tag == "research"
+            and getattr(self.settings, "ENABLE_SEARCH_GROUNDING", False)
+        )
         raw = self.generate(
             prompt + "\n\nReturn ONLY valid JSON. No markdown fences.",
-            max_tokens=max_tokens, agent_tag=agent_tag,
+            max_tokens=max_tokens,
+            agent_tag=agent_tag,
+            response_mime_type=None if use_search else "application/json",
+            use_search=use_search,
         )
         raw = re.sub(r"```json\s*|\s*```", "", raw).strip()
         match = re.search(r"\{.*\}", raw, flags=re.DOTALL)

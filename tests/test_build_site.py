@@ -211,3 +211,85 @@ def test_card_link_is_relative(tmp_path):
     # Relative link, never absolute
     assert 'href="posts/2026/05/' in home
     assert 'href="/posts/' not in home  # absolute path would break under a subpath
+
+
+
+def test_render_site_generates_search_index_and_infographics_page(tmp_path):
+    import json
+
+    posts = _sample_posts()
+    out = tmp_path / "docs"
+    render_site(posts, out)
+
+    search_json = out / "assets" / "search-index.json"
+    assert search_json.exists()
+    entries = json.loads(search_json.read_text("utf-8"))
+    assert len(entries) == 3
+    assert entries[0]["title"] == "กรอบ MECE ในการ Diagnose โรงงาน"
+
+    assert (out / "infographics" / "index.html").exists()
+
+
+def test_render_site_extracts_base64_infographic_to_static_file(tmp_path):
+    import base64
+
+    fake_png = b"\x89PNG\r\n\x1a\nfake-image-content"
+    b64 = base64.b64encode(fake_png).decode("ascii")
+    body = (
+        '<div class="wrap"><div class="bd"><p>เนื้อหา</p></div>'
+        f'<div class="hero-img"><img src="data:image/png;base64,{b64}" alt="infographic"></div>'
+        '</div>'
+    )
+    posts = [
+        Post(date="2026-05-12", title="Chiller Audit", pillar="TECHNICAL",
+             cluster="HVAC", level=1, industry="Hospitality", keywords=["chiller"],
+             body_html=body, tldr="สรุป Chiller"),
+    ]
+    out = tmp_path / "docs"
+    render_site(posts, out)
+
+    extracted = out / "assets" / "infographics" / "2026-05-12.png"
+    assert extracted.exists()
+    assert extracted.read_bytes() == fake_png
+
+    post_html = (out / "posts" / "2026" / "05" / "12" / "index.html").read_text("utf-8")
+    assert "data:image/png;base64," not in post_html
+    assert '../../../../assets/infographics/2026-05-12.png' in post_html
+    assert '<meta property="og:image" content="../../../../assets/infographics/2026-05-12.png">' in post_html
+
+
+def test_collect_posts_uses_cache_dir_to_skip_redundant_drive_downloads(tmp_path, monkeypatch):
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+
+    fixed_today = datetime(2026, 5, 12, 9, 0, tzinfo=ZoneInfo("Asia/Bangkok"))
+    monkeypatch.setattr("tools.build_site.now_bangkok", lambda: fixed_today)
+
+    download_calls = []
+
+    class FakeDrive:
+        def walk(self, _folder):
+            return [{"name": "[Email] 2026-05-10 Cached article.html", "id": "file-123"}]
+
+        def download_file(self, file_id):
+            download_calls.append(file_id)
+            return '<html><body><div class="bd"><p>cached body</p></div></body></html>'
+
+        def _list(self, *a, **k):
+            return {"files": []}
+
+    class FakeSettings:
+        FOLDER_EMAIL_ARCHIVES = "fake-folder"
+        FOLDER_KNOWLEDGE_BASE = ""
+        CALENDAR_FILE_ID = ""
+
+    cache_dir = tmp_path / "cache"
+    posts1 = collect_posts(FakeDrive(), FakeSettings(), cache_dir=cache_dir)
+    assert len(posts1) == 1
+    assert download_calls == ["file-123"]
+
+    # Second run with same cache_dir should read from disk without calling download_file
+    posts2 = collect_posts(FakeDrive(), FakeSettings(), cache_dir=cache_dir)
+    assert len(posts2) == 1
+    assert posts2[0].tldr == "cached body"
+    assert download_calls == ["file-123"]

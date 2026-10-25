@@ -151,6 +151,14 @@ jobs:
           python-version: "3.11"
           cache: pip
 
+      - name: Cache Drive Email Archives
+        uses: actions/cache@v4
+        with:
+          path: .cache/site_archives
+          key: site-archives-${{ github.run_id }}
+          restore-keys: |
+            site-archives-
+
       - name: Install dependencies
         run: pip install -r requirements.txt
 
@@ -171,7 +179,7 @@ jobs:
           CALENDAR_FILE_ID: ${{ secrets.CALENDAR_FILE_ID }}
           FOLDER_EMAIL_ARCHIVES: ${{ secrets.FOLDER_EMAIL_ARCHIVES }}
           FOLDER_KNOWLEDGE_BASE: ${{ secrets.FOLDER_KNOWLEDGE_BASE }}
-        run: python tools/build_site.py --output _site
+        run: python tools/build_site.py --output _site --cache-dir .cache/site_archives
 
       - name: Always clean up service account keys
         if: always()

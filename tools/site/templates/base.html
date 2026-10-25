@@ -10,6 +10,9 @@
 <meta name="theme-color" content="#0D47A1">
 <title>{{ title }} · Consultant Academy</title>
 <meta name="description" content="{{ description|default('คลังความรู้ Consultant Academy — PTT NGR ESP') }}">
+<meta property="og:title" content="{{ title }} · Consultant Academy">
+<meta property="og:description" content="{{ description|default('คลังความรู้ Consultant Academy — PTT NGR ESP') }}">
+{% if og_image %}<meta property="og:image" content="{{ og_image }}">{% endif %}
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -33,6 +36,7 @@
       <a href="{{ rel }}archive/">🗓️ ตามวันที่</a>
       <a href="{{ rel }}pillars/">🧭 ตาม Pillar</a>
       <a href="{{ rel }}clusters/">🎯 ตามเรื่อง</a>
+      <a href="{{ rel }}infographics/">🎨 Infographics</a>
     </nav>
   </div>
 </header>
