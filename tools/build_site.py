@@ -12,10 +12,14 @@ CLI:
   python tools/build_site.py
   python tools/build_site.py --output ./docs
   python tools/build_site.py --limit 5     # only build N most recent (smoke test)
+  python tools/build_site.py --cache-dir .cache/site_archives
 """
 from __future__ import annotations
 
 import argparse
+import base64
+import json
+import os
 import re
 import shutil
 import sys
@@ -74,6 +78,9 @@ TLDR_FROM_BODY_RE = re.compile(
     re.DOTALL,
 )
 HTML_TAG_RE = re.compile(r"<[^>]+>")
+BASE64_IMG_RE = re.compile(
+    r'src="data:image/(?:png|jpeg|webp);base64,([A-Za-z0-9+/=\s]+)"'
+)
 
 
 @dataclass
@@ -88,6 +95,7 @@ class Post:
     body_html: str
     tldr: str
     html_file_id: str = ""
+    image_rel_path: str = ""
 
     @property
     def dt(self) -> datetime:
@@ -222,7 +230,6 @@ def load_summaries(drive: DriveAPI, settings: Settings) -> dict[str, dict]:
         raw = drive.download_file(files[0]["id"])
         if not raw:
             return {}
-        import json
         data = json.loads(raw)
         # Re-key by html_file_id so we can look up archive entries directly.
         by_html: dict[str, dict] = {}
@@ -236,13 +243,42 @@ def load_summaries(drive: DriveAPI, settings: Settings) -> dict[str, dict]:
         return {}
 
 
-def collect_posts(drive: DriveAPI, settings: Settings, limit: int | None = None) -> list[Post]:
+def _download_with_cache(drive: DriveAPI, file_id: str, cache_dir: Path | None) -> str:
+    """Fetch an archived HTML file from local cache if available, else Drive."""
+    if cache_dir:
+        safe_id = re.sub(r"[^a-zA-Z0-9_-]", "_", file_id)
+        cached_path = cache_dir / f"{safe_id}.html"
+        if cached_path.exists():
+            try:
+                content = cached_path.read_text(encoding="utf-8")
+                if content:
+                    return content
+            except Exception as e:
+                logger.warning(f"Cache read failed for {file_id}: {e}")
+    html = drive.download_file(file_id) or ""
+    if html and cache_dir:
+        try:
+            cache_dir.mkdir(parents=True, exist_ok=True)
+            safe_id = re.sub(r"[^a-zA-Z0-9_-]", "_", file_id)
+            (cache_dir / f"{safe_id}.html").write_text(html, encoding="utf-8")
+        except Exception as e:
+            logger.warning(f"Cache write failed for {file_id}: {e}")
+    return html
+
+
+def collect_posts(drive: DriveAPI, settings: Settings, limit: int | None = None,
+                  cache_dir: Path | None = None) -> list[Post]:
     """Walk Email Archives → for each .html file, look up calendar
     metadata + summary, fetch body, build a Post."""
     archives_folder = getattr(settings, "FOLDER_EMAIL_ARCHIVES", "")
     if not archives_folder:
         logger.error("FOLDER_EMAIL_ARCHIVES is not set — cannot build site")
         return []
+
+    if cache_dir is None:
+        env_cache = os.getenv("SITE_CACHE_DIR", "").strip()
+        if env_cache:
+            cache_dir = Path(env_cache)
 
     # Drop posts dated after today (Bangkok). Backfill / test runs sometimes
     # leave future-dated HTML files in the Drive archive; without this filter
@@ -288,7 +324,7 @@ def collect_posts(drive: DriveAPI, settings: Settings, limit: int | None = None)
     posts: list[Post] = []
     for date_str, title, file_id, _name in archive_files:
         meta = calendar_meta.get(date_str, {})
-        html = drive.download_file(file_id) or ""
+        html = _download_with_cache(drive, file_id, cache_dir)
         if not html:
             logger.warning(f"Empty body, skipping: {date_str} {title}")
             continue
@@ -343,6 +379,31 @@ def _write(path: Path, content: str) -> None:
     path.write_text(content, encoding="utf-8")
 
 
+def _extract_infographic(post: Post, output_dir: Path) -> None:
+    """If `post.body_html` contains an inline base64 image, write it to
+    `assets/infographics/{post.date}.png` and replace the inline data URI
+    with a relative static path so pages stay small and cacheable."""
+    m = BASE64_IMG_RE.search(post.body_html or "")
+    if not m:
+        return
+    try:
+        raw_b64 = re.sub(r"\s+", "", m.group(1))
+        img_bytes = base64.b64decode(raw_b64)
+        rel_img = f"assets/infographics/{post.date}.png"
+        img_out = output_dir / rel_img
+        img_out.parent.mkdir(parents=True, exist_ok=True)
+        img_out.write_bytes(img_bytes)
+        post.image_rel_path = rel_img
+        # Post page lives at posts/YYYY/MM/DD/index.html (depth 4)
+        post.body_html = BASE64_IMG_RE.sub(
+            f'src="../../../../{rel_img}" loading="lazy"',
+            post.body_html,
+            count=1,
+        )
+    except Exception as e:
+        logger.warning(f"Failed to extract infographic for {post.date}: {e}")
+
+
 def render_site(posts: list[Post], output_dir: Path) -> None:
     if output_dir.exists():
         shutil.rmtree(output_dir)
@@ -353,15 +414,50 @@ def render_site(posts: list[Post], output_dir: Path) -> None:
     index_tpl = env.get_template("index.html")
     listing_tpl = env.get_template("listing.html")
     post_tpl = env.get_template("post.html")
+    infographics_tpl = env.get_template("infographics.html")
 
     generated_at = now_bangkok().strftime("%Y-%m-%d %H:%M")
 
-    def wrap(body_content: str, *, title: str, description: str, depth: int) -> str:
+    def wrap(body_content: str, *, title: str, description: str, depth: int,
+             og_image: str = "") -> str:
         return base_tpl.render(
             title=title, description=description,
             body=body_content, rel=_rel_for(depth),
             generated_at=generated_at,
+            og_image=og_image,
         )
+
+    # ---- assets -----------------------------------------------------------
+    (output_dir / "assets").mkdir(exist_ok=True)
+    shutil.copyfile(ASSETS_DIR / "style.css", output_dir / "assets" / "style.css")
+
+    # Extract embedded base64 infographics into standalone files first
+    for p in posts:
+        _extract_infographic(p, output_dir)
+
+    # ---- search index (JSON) ----------------------------------------------
+    search_entries = [
+        {
+            "date": p.date,
+            "date_th": p.date_th,
+            "title": p.title,
+            "url": p.url.lstrip("/"),
+            "pillar_slug": p.pillar_slug,
+            "pillar_icon": p.pillar_icon,
+            "pillar_label": p.pillar_label,
+            "cluster": p.cluster if p.show_cluster else "",
+            "level": p.level,
+            "industry": p.industry if p.industry not in ("General", "ทั่วไป") else "",
+            "keywords": p.keywords,
+            "tldr": p.tldr,
+            "image": p.image_rel_path,
+        }
+        for p in sorted(posts, key=lambda x: x.date, reverse=True)
+    ]
+    _write(
+        output_dir / "assets" / "search-index.json",
+        json.dumps(search_entries, ensure_ascii=False, separators=(",", ":")),
+    )
 
     # ---- group by pillar / cluster / year-month ---------------------------
     by_pillar: dict[str, Group] = {}
@@ -383,10 +479,6 @@ def render_site(posts: list[Post], output_dir: Path) -> None:
         by_month.setdefault((p.year, p.month), []).append(p)
         by_year.setdefault(p.year, []).append(p)
 
-    # ---- assets -----------------------------------------------------------
-    (output_dir / "assets").mkdir(exist_ok=True)
-    shutil.copyfile(ASSETS_DIR / "style.css", output_dir / "assets" / "style.css")
-
     # ---- homepage ---------------------------------------------------------
     latest = sorted(posts, key=lambda p: p.date, reverse=True)[:20]
     pillars_summary = sorted(
@@ -407,6 +499,27 @@ def render_site(posts: list[Post], output_dir: Path) -> None:
     _write(output_dir / "index.html",
            wrap(home_body, title="หน้าแรก", description="คลังความรู้ Consultant Academy",
                 depth=0))
+
+    # ---- infographics gallery ---------------------------------------------
+    infographic_posts = sorted(
+        [p for p in posts if p.image_rel_path],
+        key=lambda p: p.date,
+        reverse=True,
+    )
+    infographics_body = infographics_tpl.render(
+        rel="../",
+        posts=infographic_posts,
+        total_count=len(infographic_posts),
+    )
+    _write(
+        output_dir / "infographics" / "index.html",
+        wrap(
+            infographics_body,
+            title="คลัง Infographic",
+            description="รวมภาพสรุป Executive Consulting Infographic รายวัน",
+            depth=1,
+        ),
+    )
 
     # ---- archive hubs (year, month) --------------------------------------
     years = sorted(by_year.keys(), reverse=True)
@@ -567,7 +680,9 @@ def render_site(posts: list[Post], output_dir: Path) -> None:
             related = sorted(related, key=lambda r: r.date, reverse=True)[:5]
         body_html = post_tpl.render(rel="../../../../", post=p, related=related)
         out = output_dir / "posts" / f"{p.year:04d}" / f"{p.month:02d}" / f"{p.day:02d}" / "index.html"
-        _write(out, wrap(body_html, title=p.title, description=p.tldr or p.title, depth=4))
+        og_img = f"../../../../{p.image_rel_path}" if p.image_rel_path else ""
+        _write(out, wrap(body_html, title=p.title, description=p.tldr or p.title,
+                         depth=4, og_image=og_img))
 
     # CNAME / nojekyll — disable Jekyll so leading-underscore dirs (none yet,
     # but defensive) and folders served as-is.
@@ -578,10 +693,10 @@ def render_site(posts: list[Post], output_dir: Path) -> None:
 
 # ---------------------------------------------------------------------------
 
-def main(output_dir: Path, limit: int | None) -> int:
+def main(output_dir: Path, limit: int | None, cache_dir: Path | None = None) -> int:
     settings = Settings()
     drive = DriveAPI(settings)
-    posts = collect_posts(drive, settings, limit=limit)
+    posts = collect_posts(drive, settings, limit=limit, cache_dir=cache_dir)
     if not posts:
         logger.error("No posts collected — aborting build")
         return 1
@@ -592,8 +707,11 @@ def main(output_dir: Path, limit: int | None) -> int:
 if __name__ == "__main__":
     p = argparse.ArgumentParser(description="Build Consultant Academy KM site")
     p.add_argument("--output", default=str(DEFAULT_OUTPUT),
-                   help="Output directory (default: ./docs)")
+                   help="Output directory (default: ./_site)")
     p.add_argument("--limit", type=int, default=None,
                    help="Only build N most recent posts (smoke test)")
+    p.add_argument("--cache-dir", default=None,
+                   help="Optional directory to cache downloaded Drive HTML files")
     args = p.parse_args()
-    sys.exit(main(Path(args.output).resolve(), args.limit))
+    cdir = Path(args.cache_dir).resolve() if args.cache_dir else None
+    sys.exit(main(Path(args.output).resolve(), args.limit, cache_dir=cdir))

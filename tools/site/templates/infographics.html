@@ -1,0 +1,34 @@
+{#-
+  Infographics gallery — visual grid of daily executive consulting infographics.
+-#}<section class="listing-hdr">
+  <p class="crumbs">
+    <a href="{{ rel }}">หน้าแรก</a> <span class="sep">›</span> <a href="./">Infographics</a>
+  </p>
+  <h1>🎨 คลังภาพ Executive Infographic</h1>
+  <p class="sub">{{ total_count }} ภาพสรุปสำหรับทีมที่ปรึกษา — คลิกที่การ์ดเพื่ออ่านบทความฉบับเต็ม</p>
+</section>
+
+{% if posts %}
+<section class="block">
+  <div class="infographic-grid">
+    {% for p in posts %}
+    <article class="infographic-card">
+      <a class="infographic-thumb" href="{{ rel }}{{ p.url.lstrip('/') }}">
+        <img src="{{ rel }}{{ p.image_rel_path }}" alt="{{ p.title }}" loading="lazy">
+      </a>
+      <div class="infographic-info">
+        <span class="card-tag">{{ p.pillar_icon }} {{ p.pillar_label }} · 📅 {{ p.date_th }}</span>
+        <h3 class="card-title"><a href="{{ rel }}{{ p.url.lstrip('/') }}">{{ p.title }}</a></h3>
+        <div class="card-meta">
+          <a href="{{ rel }}{{ p.image_rel_path }}" target="_blank" rel="noopener">🔍 ดูภาพขนาดเต็ม</a>
+          <span>·</span>
+          <a href="{{ rel }}{{ p.url.lstrip('/') }}">📖 อ่านบทความ →</a>
+        </div>
+      </div>
+    </article>
+    {% endfor %}
+  </div>
+</section>
+{% else %}
+<p class="muted">(ยังไม่มีภาพ Infographic ในคลัง)</p>
+{% endif %}

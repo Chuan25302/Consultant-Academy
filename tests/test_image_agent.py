@@ -134,3 +134,32 @@ def test_strip_survives_paraphrased_headings():
     assert "q1" not in out and "a1" not in out
     assert "🔁" not in out and "🔑" not in out
     assert "## 🧰 เครื่องมือ" in out and "## 📖 ศัพท์" in out and "- t" in out
+
+
+
+def test_build_image_prompt_injects_pillar_and_topic_context():
+    from src.agents.image_agent import build_image_prompt
+
+    meta = {
+        "pillar": "SUSTAINABILITY",
+        "topic": "CBAM Impact on Thai Steel",
+        "industry": "Heavy Industry",
+    }
+    prompt = build_image_prompt(ARTICLE, meta)
+    assert "Pillar Guidance (SUSTAINABILITY):" in prompt
+    assert "Decarbonized Pathway" in prompt
+    assert "Topic: CBAM Impact on Thai Steel" in prompt
+    assert "Target Sector: Heavy Industry" in prompt
+
+
+def test_image_agent_logs_cost_when_cost_tracker_attached():
+    agent = _agent("gemini-3.1-flash-image")
+    tracker = MagicMock()
+    agent.cost_tracker = tracker
+    resp = _response(image=b"png-bytes")
+    resp.usage_metadata = MagicMock(prompt_token_count=1200, candidates_token_count=1290)
+    agent.client.models.generate_content.return_value = resp
+
+    out = agent._call_gemini_image("prompt")
+    assert out == b"png-bytes"
+    tracker.log.assert_called_once_with("gemini-3.1-flash-image", "image", 1200, 1290)

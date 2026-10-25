@@ -178,8 +178,12 @@ def main(date: str = None, dry_run: bool = False,
         industry=topic.get("industry", "ทั่วไป"),
         topic_meta=topic))
 
+    # Skip IndustryAgent on INDUSTRY pillar days since ExpertAgent already
+    # used INDUSTRY_PROMPT to write a dedicated sector profile.
     industry_ctx = None
-    if topic.get("industry") and topic["industry"] not in ["General", "ทั่วไป"]:
+    if (topic["pillar"] != "INDUSTRY"
+            and topic.get("industry")
+            and topic["industry"] not in ["General", "ทั่วไป"]):
         industry_ctx = require_ok("industry", IndustryAgent(gemini).contextualize(
             topic["topic"], topic["industry"], expert))
 
@@ -218,7 +222,7 @@ def main(date: str = None, dry_run: bool = False,
     # are non-blocking — if image gen errors out we still send the email.
     image_bytes = None
     if s.FOLDER_IMAGES and s.use_vertex:
-        image_bytes = ImageAgent(s).generate(final_md, topic)
+        image_bytes = ImageAgent(s, cost_tracker=cost).generate(final_md, topic)
 
     # Two HTMLs from the same content:
     # - email_html uses cid:infographic so the image is MIME-attached

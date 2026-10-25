@@ -139,3 +139,20 @@ def test_run_summary_line_reports_shape_kit_recall_repairs(deps, caplog, repairs
         _run()
     lines = [r.getMessage() for r in caplog.records if "📐" in r.getMessage()]
     assert lines == [f"📐 shape=TECHNICAL kit=checklist recall=1 repairs={repairs}"]
+
+
+
+def test_industry_agent_skipped_on_industry_pillar_day(deps):
+    deps.download_file.return_value = (
+        "- **2026-05-04**: INDUSTRY | Hotel Profile | Hospitality | hotel "
+        "| cluster=Hospitality | level=1\n"
+    )
+    main_mod.IndustryAgent.reset_mock()
+    _run()
+    main_mod.IndustryAgent.return_value.contextualize.assert_not_called()
+
+
+def test_industry_agent_called_on_technical_pillar_day(deps):
+    main_mod.IndustryAgent.reset_mock()
+    _run()
+    main_mod.IndustryAgent.return_value.contextualize.assert_called_once()
