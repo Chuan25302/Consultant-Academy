@@ -59,7 +59,7 @@ class Settings:
     # section comfortably fits in 4000.
     MAX_TOKENS = {
         "research":     2500,
-        "expert":       3500,
+        "expert":       5000,  # headroom for gemini-4-hydrogen thinking tokens
         "industry":     2000,
         "factchecker":  5000,  # reviews expert + industry output
         "translator":   8000,  # 800–1,000-word target + 3.x thinking; 5000 hit MAX_TOKENS on real runs

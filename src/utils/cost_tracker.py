@@ -25,6 +25,7 @@ PRICING = {
     # Vertex Global, introductory rate through 2026-12-31; becomes
     # (1.50, 7.50) on 2027-01-01 — update this entry then.
     "gemini-3.8-flash":        (0.75,  3.75),
+    "gemini-4-hydrogen":       (1.50,  7.50),
     # Image generation models (token-based pricing per 1M tokens; image output
     # tokens are ~1,290 tokens per generated image ≈ $0.039/image).
     "gemini-3.1-flash-image":  (0.30, 30.00),
