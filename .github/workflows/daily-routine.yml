@@ -77,9 +77,9 @@ jobs:
           SITE_BASE_URL: ${{ secrets.SITE_BASE_URL }}
           GEMINI_MODEL: gemini-3.8-flash
           GEMINI_MODEL_RESEARCH: gemini-3.8-flash
-          GEMINI_MODEL_EXPERT: gemini-3.8-flash
+          GEMINI_MODEL_EXPERT: gemini-4-hydrogen
           GEMINI_MODEL_INDUSTRY: gemini-3.8-flash
-          GEMINI_MODEL_FACTCHECKER: gemini-3.8-flash
+          GEMINI_MODEL_FACTCHECKER: gemini-4-hydrogen
           GEMINI_MODEL_TRANSLATOR: gemini-3.8-flash
           GEMINI_MODEL_EDITOR: gemini-3.8-flash
           GEMINI_MODEL_SUSTAINABILITY: gemini-3.8-flash
